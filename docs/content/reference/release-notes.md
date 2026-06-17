@@ -6,6 +6,13 @@ weight: 40
 
 The authoritative, commit-level history lives in [`CHANGELOG.md`](https://github.com/tamnd/yomi/blob/main/CHANGELOG.md) and on the [releases page](https://github.com/tamnd/yomi/releases). This page summarises each version.
 
+## v0.2.1
+
+A pass to make a packed ZIM open nicely in Kiwix.
+
+- **A library icon.** Every ZIM build now embeds a 48x48 icon, so Kiwix shows a real book tile instead of a blank placeholder. yomi draws a built-in reading icon by default; `--icon` with a PNG uses the site's own logo instead.
+- **Metadata Kiwix reads.** The archive now carries a `Counter` of the packed pages for the library listing, `Creator` is the packed site rather than the tool version, and `Scraper` names yomi and its version, so the three keys read the way Kiwix expects.
+
 ## v0.2.0
 
 A new way to keep a whole site: one file instead of a folder.
