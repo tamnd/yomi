@@ -40,7 +40,7 @@ func newSiteCmd() *cobra.Command {
 			return runSite(cmd.Context(), args[0], f)
 		},
 	}
-	f.readFlags.register(cmd)
+	f.register(cmd)
 	fs := cmd.Flags()
 	fs.StringVarP(&f.out, "out", "o", "", "output folder, or file with --single (default: the host)")
 	fs.BoolVarP(&f.single, "single", "s", false, "assemble one Markdown file instead of a folder")
@@ -55,7 +55,7 @@ func newSiteCmd() *cobra.Command {
 }
 
 func runSite(ctx context.Context, url string, f *siteFlags) error {
-	opts, err := f.readFlags.options()
+	opts, err := f.options()
 	if err != nil {
 		return err
 	}

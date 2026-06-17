@@ -9,6 +9,5 @@ var (
 	styleAccent = lipgloss.NewStyle().Foreground(lipgloss.Color("12"))
 	styleOK     = lipgloss.NewStyle().Foreground(lipgloss.Color("10"))
 	styleWarn   = lipgloss.NewStyle().Foreground(lipgloss.Color("11"))
-	styleErr    = lipgloss.NewStyle().Foreground(lipgloss.Color("9"))
 	styleDim    = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
 )
