@@ -7,9 +7,11 @@ heroPrimaryURL: "/getting-started/quick-start/"
 heroPrimaryText: "Get started"
 ---
 
-Copying an article into a Markdown file by hand means fighting the page: the nav bar, the cookie banner, the newsletter box, the share rail, and the half-rendered shell of a JavaScript app that shows nothing until a script runs. yomi (読み, "reading") does that work for you. It fetches the page, renders it in a real browser only when the page actually needs one, keeps the article and drops the furniture, and hands you Markdown.
+Copying an article into a Markdown file by hand means fighting the page: the nav bar, the cookie banner, the newsletter box, the share rail, and the half-rendered shell of a JavaScript app that shows nothing until a script runs. yomi (読み, "reading") does that work for you. It fetches the page, renders it in a real browser only when the page actually needs one, keeps the article and drops the furniture, and hands you Markdown you can store in a repo, diff in a pull request, search offline, or feed to whatever comes next.
 
-Say you want Paul Graham's essays as Markdown you can read in an editor. One command reads one essay; another reads the whole site into a folder:
+![yomi reading a page into Markdown, saving it to a file, and printing its metadata as JSON](/demo.gif)
+
+Say you want Paul Graham's essays as Markdown you can read in an editor. One command reads one essay; another reads the whole site into a folder. A bare host is fine, yomi fills in `https://` for you:
 
 ```bash
 yomi read paulgraham.com/greatwork.html -o greatwork.md

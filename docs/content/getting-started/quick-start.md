@@ -14,7 +14,8 @@ browser.
 yomi read paulgraham.com/greatwork.html
 ```
 
-yomi fetches the page, renders it only if it looks JavaScript-gated, extracts the
+A bare host is enough; yomi fills in `https://` when you leave the scheme off.
+It fetches the page, renders it only if it looks JavaScript-gated, extracts the
 article, and prints Markdown to stdout. The document opens with a front-matter
 block:
 
