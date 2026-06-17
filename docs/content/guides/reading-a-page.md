@@ -12,7 +12,8 @@ yomi read paulgraham.com/greatwork.html
 yomi read paulgraham.com/greatwork.html -o greatwork.md
 ```
 
-`-o/--out` writes to a file instead of stdout.
+`-o/--out` writes to a file instead of stdout. You can pass a bare host like
+`paulgraham.com/greatwork.html`; yomi defaults a missing scheme to `https://`.
 
 ## Render modes
 

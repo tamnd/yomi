@@ -6,6 +6,13 @@ weight: 40
 
 The authoritative, commit-level history lives in [`CHANGELOG.md`](https://github.com/tamnd/yomi/blob/main/CHANGELOG.md) and on the [releases page](https://github.com/tamnd/yomi/releases). This page summarises each version.
 
+## v0.1.2
+
+A small pass for the people actually typing the commands.
+
+- **Bare hosts read.** `yomi read`, `yomi meta`, and `yomi links` now accept a URL with no scheme: `yomi read example.com/post` defaults to `https://`, the shorthand `yomi site` already took. Every example in the docs uses it, so now they all run exactly as written.
+- **Friendlier docs.** A rewritten README with a terminal demo of the read, save, and metadata loop, and a warmer pass over the homepage and guides.
+
 ## v0.1.1
 
 A quality pass on the extracted Markdown, a cleaner `yomi meta`, and docs that match the real output.

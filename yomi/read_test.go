@@ -69,6 +69,23 @@ func TestReadStatic(t *testing.T) {
 	}
 }
 
+func TestEnsureScheme(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"example.com", "https://example.com"},
+		{"example.com/post", "https://example.com/post"},
+		{"http://example.com", "http://example.com"},
+		{"https://example.com/x", "https://example.com/x"},
+		{"//cdn.example.com/x", "https://cdn.example.com/x"},
+		{"  example.com/p  ", "https://example.com/p"},
+		{"", ""},
+	}
+	for _, c := range cases {
+		if got := ensureScheme(c.in); got != c.want {
+			t.Errorf("ensureScheme(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}
+
 func TestSiteFolder(t *testing.T) {
 	srv := newArticleServer()
 	defer srv.Close()
