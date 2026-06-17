@@ -41,7 +41,53 @@ func Convert(node *html.Node, opts Options) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return Tidy(cleanHeadings(string(out))), nil
+	return Tidy(dropPreviewCounters(cleanHeadings(string(out)))), nil
+}
+
+var numberOnly = regexp.MustCompile(`^\d{1,3}$`)
+
+// dropPreviewCounters removes runs of standalone short-number lines that sit
+// outside code fences. Component documentation often renders a live preview
+// labelled 01, 02, 03 next to the code, and that gutter survives extraction as a
+// column of bare numbers with nothing to anchor them. Only a run of two or more
+// such lines is dropped, so a lone number in prose is never mistaken for a
+// gutter, and numbers inside code (a REPL result, for instance) are untouched.
+func dropPreviewCounters(md string) string {
+	lines := strings.Split(md, "\n")
+	out := make([]string, 0, len(lines))
+	inFence := false
+	for i := 0; i < len(lines); i++ {
+		ln := lines[i]
+		if strings.HasPrefix(strings.TrimSpace(ln), "```") {
+			inFence = !inFence
+			out = append(out, ln)
+			continue
+		}
+		if inFence || !numberOnly.MatchString(strings.TrimSpace(ln)) {
+			out = append(out, ln)
+			continue
+		}
+		// Gather a run of numeric lines separated only by blanks.
+		j, count := i, 0
+		for j < len(lines) {
+			t := strings.TrimSpace(lines[j])
+			if t == "" {
+				j++
+				continue
+			}
+			if !numberOnly.MatchString(t) {
+				break
+			}
+			count++
+			j++
+		}
+		if count >= 2 {
+			i = j - 1 // skip the whole gutter run
+			continue
+		}
+		out = append(out, ln)
+	}
+	return strings.Join(out, "\n")
 }
 
 var (

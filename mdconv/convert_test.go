@@ -153,6 +153,31 @@ func TestCleanHeadingsSkipsFence(t *testing.T) {
 	}
 }
 
+func TestDropPreviewCounters(t *testing.T) {
+	in := "Use flex utilities:\n\n01\n\n02\n\n03\n\n```\n<div>1</div>\n```\n"
+	got := dropPreviewCounters(in)
+	if strings.Contains(got, "\n01\n") || strings.Contains(got, "\n02\n") {
+		t.Errorf("gutter numbers not dropped:\n%s", got)
+	}
+	if !strings.Contains(got, "Use flex utilities:") {
+		t.Errorf("prose dropped:\n%s", got)
+	}
+}
+
+func TestDropPreviewCountersKeepsLoneNumber(t *testing.T) {
+	in := "The answer is\n\n42\n\nas expected.\n"
+	if got := dropPreviewCounters(in); !strings.Contains(got, "42") {
+		t.Errorf("lone number wrongly dropped:\n%s", got)
+	}
+}
+
+func TestDropPreviewCountersKeepsCodeNumbers(t *testing.T) {
+	in := "```\n4\n20\n```\n"
+	if got := dropPreviewCounters(in); got != in {
+		t.Errorf("numbers inside fence dropped:\n%s", got)
+	}
+}
+
 func TestTidy(t *testing.T) {
 	if got := Tidy("a\n\n\n\nb\n\n\n"); got != "a\n\nb\n" {
 		t.Errorf("Tidy = %q", got)
