@@ -5,6 +5,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-06-18
+
+### Metadata
+
+- `yomi meta` no longer prints an empty `markdown` field, so the metadata view is just metadata. The record is the page's `url`, `title`, `byline`, `site_name`, `excerpt`, `lang`, `published`, `fetched`, `word_count`, `reading_time`, and `rendered`, followed by `links` and `images` as arrays.
+
+### Documentation
+
+- The front-matter and `yomi meta` examples in the docs now match the real output exactly: quoted string values, `reading_time` as a whole-minute number, and `links` and `images` as arrays of objects rather than counts.
+- The CLI reference and configuration pages note that the default `--user-agent` is a real desktop Chrome string.
+
 ### Markdown quality
 
 - A caption that only repeats the alt text of the image it follows is dropped, so an article figure no longer prints the same line twice, while a caption that adds information is kept.
@@ -40,5 +51,6 @@ First release. yomi reads a web page, or a whole website, into clean Markdown.
 - Code whose highlighter laid each line out as its own element, with no literal newline between lines, regains its line breaks.
 - Standalone preview-counter gutters, the column of bare numbers like 01, 02, 03 that component docs render next to an example, are dropped, while a lone number in prose and any number inside code are kept.
 
-[Unreleased]: https://github.com/tamnd/yomi/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/tamnd/yomi/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/tamnd/yomi/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/tamnd/yomi/releases/tag/v0.1.0

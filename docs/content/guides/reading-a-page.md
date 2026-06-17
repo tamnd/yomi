@@ -53,17 +53,21 @@ ones are written:
 
 ```yaml
 ---
-title: How to Do Great Work
-url: https://paulgraham.com/greatwork.html
-site: Paul Graham
-byline: Paul Graham
-published: 2023-07-01
-fetched: 2026-06-17T09:30:00Z
-lang: en
-word_count: 13500
-reading_time: 54 min
+title: "How to Do Great Work"
+url: "https://paulgraham.com/greatwork.html"
+site: "Paul Graham"
+byline: "Paul Graham"
+published: "2023-07-01"
+fetched: "2026-06-17T09:30:00Z"
+lang: "en"
+word_count: 11856
+reading_time: 59
 ---
 ```
+
+String values are quoted, and `reading_time` is the estimate in whole minutes.
+A page that does not expose a site name, byline, language, or published date
+simply omits those lines.
 
 To omit the header entirely and emit only the body:
 
@@ -129,19 +133,31 @@ yomi meta paulgraham.com/greatwork.html
 
 ```json
 {
+  "url": "https://paulgraham.com/greatwork.html",
   "title": "How to Do Great Work",
-  "byline": "Paul Graham",
-  "site": "Paul Graham",
-  "language": "en",
-  "word_count": 13500,
-  "reading_time": "54 min",
-  "links": 42,
-  "images": 3
+  "excerpt": "If you collected lists of techniques for doing great work in a lot of different fields, what would the intersection look like? I decided to find out by making it.",
+  "fetched": "2026-06-17T09:30:00Z",
+  "word_count": 11856,
+  "reading_time": 59,
+  "rendered": false,
+  "links": [
+    { "url": "https://paulgraham.com/index.html" }
+  ],
+  "images": [
+    { "alt": "How to Do Great Work", "url": "https://s.turbifycdn.com/.../how-to-do-great-work-2.gif" }
+  ]
 }
 ```
 
-This is handy for scripting: feed a list of URLs through `yomi meta` and you get
-a structured row per page without converting any prose.
+The record is the page's full metadata: `url`, `title`, `byline`, `site_name`,
+`excerpt`, `lang`, `published`, `fetched`, `word_count`, `reading_time` (whole
+minutes), and `rendered` (whether the page needed the browser), followed by the
+`links` and `images` it found as arrays of objects. Only non-empty fields appear,
+so a page without a byline or site name omits them, as this essay does.
+
+This is handy for scripting: feed a list of URLs through `yomi meta`, then pull a
+field with `jq`, and you get a structured row per page without converting any
+prose. For example, `yomi meta <url> | jq .reading_time`.
 
 ## Just the links
 

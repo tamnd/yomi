@@ -26,7 +26,7 @@ type Page struct {
 	WordCount  int     `json:"word_count"`
 	ReadingMin int     `json:"reading_time"`
 	Rendered   bool    `json:"rendered"`
-	Markdown   string  `json:"markdown"`
+	Markdown   string  `json:"markdown,omitempty"`
 	Links      []Link  `json:"links,omitempty"`
 	Images     []Image `json:"images,omitempty"`
 }

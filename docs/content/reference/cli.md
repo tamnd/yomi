@@ -76,9 +76,12 @@ crawl.
 yomi meta <url> [flags]
 ```
 
-Prints the page's metadata record as JSON (title, byline, site, language,
-word_count, reading_time, links, images), without the Markdown body. Takes the
-[shared read flags](#shared-read-flags).
+Prints the page's metadata record as JSON, without the Markdown body. The record
+carries `url`, `title`, `byline`, `site_name`, `excerpt`, `lang`, `published`,
+`fetched`, `word_count`, `reading_time` (whole minutes), and `rendered`, followed
+by `links` and `images` as arrays of objects (each link is `{text, url,
+internal}`, each image `{alt, url, local}`). Only non-empty fields appear. Takes
+the [shared read flags](#shared-read-flags).
 
 ## yomi links
 
@@ -118,7 +121,7 @@ These apply to `read`, `site`, `meta`, and `links`.
 | `--render` | `auto` | `auto` static-fetches first and renders in headless Chrome only when the page looks JavaScript-gated; `on` always renders; `off` never launches a browser |
 | `--scroll` | `false` | Auto-scroll the page in render mode to trigger lazy loading |
 | `--timeout` | `30s` | Per-request timeout |
-| `--user-agent` | | User-Agent for fetches |
+| `--user-agent` | a desktop Chrome string | User-Agent for page and asset fetches; the default is a real browser string so a page returns the HTML a person would see |
 | `--chrome` | | Path to the Chrome/Chromium binary |
 | `--control-url` | | Attach to a running Chrome DevTools endpoint |
 
@@ -154,4 +157,7 @@ fields appear in this fixed order, and only non-empty ones are written:
 | `fetched` | When yomi read the page |
 | `lang` | Content language |
 | `word_count` | Words in the extracted article |
-| `reading_time` | Estimated reading time |
+| `reading_time` | Estimated reading time, in whole minutes |
+
+String values are quoted; `word_count` and `reading_time` are written as plain
+numbers.
