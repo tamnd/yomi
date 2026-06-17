@@ -20,20 +20,21 @@ block:
 
 ```markdown
 ---
-title: How to Do Great Work
-url: https://paulgraham.com/greatwork.html
-site: Paul Graham
-byline: Paul Graham
-published: 2023-07-01
-fetched: 2026-06-17T09:30:00Z
-lang: en
-word_count: 13500
-reading_time: 54 min
+title: "How to Do Great Work"
+url: "https://paulgraham.com/greatwork.html"
+byline: "Paul Graham"
+fetched: "2026-06-17T09:30:00Z"
+word_count: 11856
+reading_time: 59
 ---
 
 If you collected lists of techniques for doing great work in a lot
 of different fields, what would the intersection look like? ...
 ```
+
+Strings are quoted, `reading_time` is the estimate in whole minutes, and only the
+fields the page actually provides are written. This essay carries no site name,
+language, or published date, so those lines are simply absent.
 
 ## 2. Save it to a file
 

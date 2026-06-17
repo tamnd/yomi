@@ -6,6 +6,14 @@ weight: 40
 
 The authoritative, commit-level history lives in [`CHANGELOG.md`](https://github.com/tamnd/yomi/blob/main/CHANGELOG.md) and on the [releases page](https://github.com/tamnd/yomi/releases). This page summarises each version.
 
+## v0.1.1
+
+A quality pass on the extracted Markdown, a cleaner `yomi meta`, and docs that match the real output.
+
+- **Cleaner article Markdown.** A caption that only repeats an image's alt text is dropped, a picture linked to its own full-size file is unwrapped to a plain image, and a stray share or subscribe button left in the body is removed. A bare angle bracket the converter had escaped is restored in prose (so `a -> b` and `<placeholder>` read as written), a needless backslash before an underscore or tilde is dropped, and a link with no destination renders as its text alone. Code blocks keep their bytes exactly.
+- **`yomi meta` is just metadata.** The JSON record no longer carries an empty `markdown` field. It is the page's `url`, `title`, `byline`, `site_name`, `excerpt`, `lang`, `published`, `fetched`, `word_count`, `reading_time`, and `rendered`, followed by `links` and `images` as arrays of objects.
+- **Docs match the code.** The front-matter and `meta` examples now show quoted string values, `reading_time` as a whole-minute number, and `links` and `images` as arrays rather than counts.
+
 ## v0.1.0
 
 The first release. yomi reads a web page, or a whole website, into clean Markdown: fetch the page, render the JavaScript only when the page needs it, extract the main content, and convert what is left to GitHub-Flavored Markdown with a YAML front-matter block.

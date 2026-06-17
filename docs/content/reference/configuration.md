@@ -17,7 +17,7 @@ How yomi gets the page, and when it launches a browser.
 | `--render` | `auto` | `auto` = static fetch first, render only when the page looks JavaScript-gated; `on` = always render; `off` = never launch a browser |
 | `--scroll` | `false` | Auto-scroll in render mode for lazy-loaded content |
 | `--timeout` | `30s` | Per-request timeout |
-| `--user-agent` | | User-Agent for fetches |
+| `--user-agent` | a desktop Chrome string | User-Agent for fetches; the default is a real browser string |
 | `--chrome` | | Path to the Chrome/Chromium binary |
 | `--control-url` | | Attach to a running Chrome DevTools endpoint |
 

@@ -32,17 +32,16 @@ The extracted content is converted to GitHub-Flavored Markdown: headings, lists,
 
 ```yaml
 ---
-title: How to Do Great Work
-url: https://paulgraham.com/greatwork.html
-site: Paul Graham
-byline: Paul Graham
-published: 2023-07-01
-fetched: 2026-06-17T09:30:00Z
-lang: en
-word_count: 13500
-reading_time: 54 min
+title: "How to Do Great Work"
+url: "https://paulgraham.com/greatwork.html"
+byline: "Paul Graham"
+fetched: "2026-06-17T09:30:00Z"
+word_count: 11856
+reading_time: 59
 ---
 ```
+
+The string values are quoted, `reading_time` is whole minutes, and a page that also exposes a site name, language, or published date gets `site`, `lang`, and `published` lines too. Empty fields are left out.
 
 ## How it differs from kage, and from "copy into Markdown"
 
