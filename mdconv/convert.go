@@ -43,10 +43,142 @@ func Convert(node *html.Node, opts Options) (string, error) {
 		return "", err
 	}
 	md := cleanHeadings(string(out))
+	md = decodeProseEntities(md)
+	md = dropNeedlessEscapes(md)
 	md = dropDuplicateCaptions(md)
 	md = dropWidgetLinks(md)
 	md = dropPreviewCounters(md)
 	return Tidy(md), nil
+}
+
+// entityDecoder turns the handful of HTML entities the converter emits to keep
+// markup safe back into the literal characters a reader expects. The converter
+// HTML-escapes a bare < or > in text so it cannot be read as a tag, which leaves
+// prose like a -> b or a <name> placeholder showing &gt; and &lt; instead. In a
+// plain Markdown reading file the literal character is what belongs, so it is
+// restored. The replacement runs in one left-to-right pass, so a once-escaped
+// &amp;lt; survives as &lt; rather than collapsing all the way to <.
+var entityDecoder = strings.NewReplacer(
+	"&lt;", "<",
+	"&gt;", ">",
+	"&amp;", "&",
+	"&quot;", `"`,
+	"&#34;", `"`,
+	"&#39;", "'",
+	"&apos;", "'",
+	"&nbsp;", " ",
+)
+
+// decodeProseEntities restores literal characters from the converter's safety
+// entities, but only in prose. Code keeps its bytes verbatim, since an entity
+// inside a code sample is content the reader is meant to see exactly as written.
+func decodeProseEntities(md string) string {
+	return mapProse(md, entityDecoder.Replace)
+}
+
+// dropNeedlessEscapes removes a backslash the converter added in front of a
+// character that does not actually need escaping in its context. An underscore
+// inside a word never starts emphasis, since the converter writes emphasis with
+// asterisks, so system\_specs is only noise. A single tilde is not strikethrough,
+// which needs a pair, so \~2ms is noise too. Both are restored only in prose; a
+// backslash inside code is the author's and is left alone.
+func dropNeedlessEscapes(md string) string {
+	return mapProse(md, stripProseEscapes)
+}
+
+func stripProseEscapes(s string) string {
+	b := []byte(s)
+	out := make([]byte, 0, len(b))
+	for i := 0; i < len(b); i++ {
+		if b[i] == '\\' && i+1 < len(b) {
+			switch b[i+1] {
+			case '_':
+				prev := byte(' ')
+				if len(out) > 0 {
+					prev = out[len(out)-1]
+				}
+				next := byte(' ')
+				if i+2 < len(b) {
+					next = b[i+2]
+				}
+				if isWordByte(prev) && isWordByte(next) {
+					continue // intraword underscore: keep the underscore, drop the backslash
+				}
+			case '~':
+				prev := byte(' ')
+				if len(out) > 0 {
+					prev = out[len(out)-1]
+				}
+				next := byte(' ')
+				if i+2 < len(b) {
+					next = b[i+2]
+				}
+				// A lone tilde is not strikethrough, which needs a pair. Stay
+				// clear of any neighbouring tilde or backslash, so an escaped
+				// \~\~ pair is left intact.
+				if prev != '~' && prev != '\\' && next != '~' && next != '\\' {
+					continue
+				}
+			}
+		}
+		out = append(out, b[i])
+	}
+	return string(out)
+}
+
+func isWordByte(b byte) bool {
+	return b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z' || b >= '0' && b <= '9' || b == '_'
+}
+
+// mapProse applies fn to the prose of a Markdown document while passing code
+// through untouched. It skips fenced blocks by line and inline spans by backtick
+// run, so a transform meant for readable text never rewrites a code sample.
+func mapProse(md string, fn func(string) string) string {
+	lines := strings.Split(md, "\n")
+	inFence := false
+	for i, ln := range lines {
+		if strings.HasPrefix(strings.TrimSpace(ln), "```") {
+			inFence = !inFence
+			continue
+		}
+		if inFence {
+			continue
+		}
+		lines[i] = mapProseLine(ln, fn)
+	}
+	return strings.Join(lines, "\n")
+}
+
+func mapProseLine(ln string, fn func(string) string) string {
+	var b strings.Builder
+	for i := 0; i < len(ln); {
+		if ln[i] == '`' {
+			j := i
+			for j < len(ln) && ln[j] == '`' {
+				j++
+			}
+			delim := ln[i:j]
+			rest := ln[j:]
+			end := strings.Index(rest, delim)
+			if end == -1 {
+				// An unbalanced backtick is not a code span; treat the rest as prose.
+				b.WriteString(fn(ln[i:]))
+				break
+			}
+			closeEnd := j + end + len(delim)
+			b.WriteString(ln[i:closeEnd]) // the inline code span, verbatim
+			i = closeEnd
+			continue
+		}
+		k := strings.IndexByte(ln[i:], '`')
+		if k == -1 {
+			b.WriteString(fn(ln[i:]))
+			break
+		}
+		b.WriteString(fn(ln[i : i+k]))
+		i += k
+	}
+	return b.String()
 }
 
 var numberOnly = regexp.MustCompile(`^\d{1,3}$`)
@@ -306,7 +438,12 @@ func cleanHeadings(md string) string {
 func newConverter() *converter.Converter {
 	return converter.NewConverter(converter.WithPlugins(
 		base.NewBasePlugin(),
-		commonmark.NewCommonmarkPlugin(),
+		commonmark.NewCommonmarkPlugin(
+			// A link the page left without a destination is dead weight in
+			// Markdown, so render its text alone instead of an empty [text]().
+			commonmark.WithLinkEmptyHrefBehavior(commonmark.LinkBehaviorSkip),
+			commonmark.WithLinkEmptyContentBehavior(commonmark.LinkBehaviorSkip),
+		),
 		table.NewTablePlugin(),
 		strikethrough.NewStrikethroughPlugin(),
 	))
