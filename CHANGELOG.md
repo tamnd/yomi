@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-06-18
+
+A pass to make a packed ZIM open nicely in Kiwix.
+
 ### Added
 
 - A 48x48 library icon in every ZIM build, so Kiwix shows a real book tile instead of a blank placeholder. yomi draws a built-in reading icon; `--icon <png>` uses the site's own logo instead.
