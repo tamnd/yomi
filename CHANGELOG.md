@@ -5,6 +5,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Markdown quality
+
+- A caption that only repeats the alt text of the image it follows is dropped, so an article figure no longer prints the same line twice, while a caption that adds information is kept.
+- A picture linked to its own full-size file is unwrapped to a plain image, since that lightbox link does nothing in a Markdown document, while an image that links to an article or any other page keeps its link.
+- A standalone share-or-subscribe button left in the body, such as a lone Share or Subscribe link on its own line, is removed.
+
 ## [0.1.0] - 2026-06-17
 
 First release. yomi reads a web page, or a whole website, into clean Markdown.
