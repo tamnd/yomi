@@ -36,12 +36,17 @@ type Options struct {
 // Convert rewrites node's references and renders it to Markdown. The node is
 // mutated in place by the rewrite, which is fine because it is a per-page copy.
 func Convert(node *html.Node, opts Options) (string, error) {
+	unwrapSelfLinkedImages(node)
 	rewriteRefs(node, opts)
 	out, err := newConverter().ConvertNode(node)
 	if err != nil {
 		return "", err
 	}
-	return Tidy(dropPreviewCounters(cleanHeadings(string(out)))), nil
+	md := cleanHeadings(string(out))
+	md = dropDuplicateCaptions(md)
+	md = dropWidgetLinks(md)
+	md = dropPreviewCounters(md)
+	return Tidy(md), nil
 }
 
 var numberOnly = regexp.MustCompile(`^\d{1,3}$`)
@@ -94,6 +99,161 @@ var (
 	headingLine = regexp.MustCompile(`^(#{1,6})\s+(.*?)\s*$`)
 	mdLink      = regexp.MustCompile(`\[([^\]]*)\]\(([^)]*)\)`)
 )
+
+var imageOnlyLine = regexp.MustCompile(`^!\[([^\]]*)\]\([^)]*\)\s*$`)
+
+// dropDuplicateCaptions removes a caption paragraph that only repeats the image
+// it follows. Article platforms commonly emit a figure whose caption text is the
+// same string as the image alt text, which extraction turns into an image line
+// followed by a paragraph saying exactly the same thing. The repeat carries no
+// information, so it is dropped; a caption that differs from the alt text is a
+// real caption and is kept. Lines inside code fences are never touched.
+func dropDuplicateCaptions(md string) string {
+	lines := strings.Split(md, "\n")
+	out := make([]string, 0, len(lines))
+	inFence := false
+	pendingAlt := ""
+	for _, ln := range lines {
+		t := strings.TrimSpace(ln)
+		if strings.HasPrefix(t, "```") {
+			inFence = !inFence
+			pendingAlt = ""
+			out = append(out, ln)
+			continue
+		}
+		if inFence {
+			out = append(out, ln)
+			continue
+		}
+		if pendingAlt != "" && t != "" {
+			// First non-blank line after an image that carried alt text.
+			if t == pendingAlt {
+				pendingAlt = ""
+				continue
+			}
+			pendingAlt = ""
+		}
+		if m := imageOnlyLine.FindStringSubmatch(ln); m != nil {
+			pendingAlt = strings.TrimSpace(m[1])
+		}
+		out = append(out, ln)
+	}
+	return strings.Join(out, "\n")
+}
+
+var widgetLink = regexp.MustCompile(`(?i)^\[(share|subscribe|leave a comment|comment|give a gift subscription|pledge your support|refer a friend)\]\([^)]*\)\s*$`)
+
+// dropWidgetLinks removes a standalone line that is only a link whose visible
+// text is one of the share-and-subscribe call-to-action buttons publishing
+// platforms inject around an article. Real prose is never a single such word
+// linked on its own line, so the match is precise. Lines inside code fences are
+// left alone.
+func dropWidgetLinks(md string) string {
+	lines := strings.Split(md, "\n")
+	out := make([]string, 0, len(lines))
+	inFence := false
+	for _, ln := range lines {
+		if strings.HasPrefix(strings.TrimSpace(ln), "```") {
+			inFence = !inFence
+			out = append(out, ln)
+			continue
+		}
+		if !inFence && widgetLink.MatchString(strings.TrimSpace(ln)) {
+			continue
+		}
+		out = append(out, ln)
+	}
+	return strings.Join(out, "\n")
+}
+
+// unwrapSelfLinkedImages replaces a link that wraps only an image, and points at
+// an image itself, with the bare image. Many article platforms link a picture to
+// its own full-size file so a reader can open it in a lightbox, which is noise in
+// a Markdown document where the link cannot do anything useful. A link that wraps
+// an image but points at an article or any non-image target is left intact.
+func unwrapSelfLinkedImages(n *html.Node) {
+	var anchors []*html.Node
+	var walk func(*html.Node)
+	walk = func(node *html.Node) {
+		for c := node.FirstChild; c != nil; c = c.NextSibling {
+			if c.Type == html.ElementNode && c.Data == "a" && soleImage(c) != nil && isImageURL(getAttr(c, "href")) {
+				anchors = append(anchors, c)
+			}
+			walk(c)
+		}
+	}
+	walk(n)
+	for _, a := range anchors {
+		img := soleImage(a)
+		img.Parent.RemoveChild(img)
+		a.Parent.InsertBefore(img, a)
+		a.Parent.RemoveChild(a)
+	}
+}
+
+// soleImage returns the one <img> in n's subtree when that image is the only
+// content n carries. Whitespace text and line breaks are ignored, and wrapper
+// elements that hold nothing but the image are descended into, since platforms
+// nest a linked picture under layout divs. It returns nil when the subtree holds
+// visible text, more than one image, or any other content-bearing element, which
+// keeps a real caption or a second link from being unwrapped.
+func soleImage(n *html.Node) *html.Node {
+	var img *html.Node
+	var walk func(*html.Node) bool
+	walk = func(node *html.Node) bool {
+		for c := node.FirstChild; c != nil; c = c.NextSibling {
+			switch c.Type {
+			case html.TextNode:
+				if strings.TrimSpace(c.Data) != "" {
+					return false
+				}
+			case html.ElementNode:
+				switch c.Data {
+				case "img":
+					if img != nil {
+						return false
+					}
+					img = c
+				case "br", "source":
+					// Layout-only, no content of their own.
+				case "div", "span", "figure", "picture", "p":
+					if !walk(c) {
+						return false
+					}
+				default:
+					return false
+				}
+			}
+		}
+		return true
+	}
+	if !walk(n) || img == nil {
+		return nil
+	}
+	return img
+}
+
+var imageExt = []string{".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".avif", ".bmp"}
+
+// isImageURL reports whether href points at an image, either by file extension or
+// through a CDN transform path that serves an image.
+func isImageURL(href string) bool {
+	href = strings.TrimSpace(href)
+	if href == "" {
+		return false
+	}
+	u, err := url.Parse(href)
+	if err != nil {
+		return false
+	}
+	p := strings.ToLower(u.Path)
+	for _, ext := range imageExt {
+		if strings.HasSuffix(p, ext) {
+			return true
+		}
+	}
+	return strings.Contains(p, "/image/fetch/")
+}
 
 // cleanHeadings strips the permalink decorations documentation generators hang
 // off their headings: a trailing pilcrow or hash link, an empty link, or a

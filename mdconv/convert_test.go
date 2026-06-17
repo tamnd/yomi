@@ -178,6 +178,70 @@ func TestDropPreviewCountersKeepsCodeNumbers(t *testing.T) {
 	}
 }
 
+func TestDropDuplicateCaptions(t *testing.T) {
+	in := "![Image by DALL-E](https://x/a.jpg)\n\nImage by DALL-E\n\nReal text.\n"
+	got := dropDuplicateCaptions(in)
+	if strings.Count(got, "Image by DALL-E") != 1 {
+		t.Errorf("duplicate caption not collapsed:\n%s", got)
+	}
+	if !strings.Contains(got, "![Image by DALL-E](https://x/a.jpg)") {
+		t.Errorf("image line lost:\n%s", got)
+	}
+	if !strings.Contains(got, "Real text.") {
+		t.Errorf("following prose dropped:\n%s", got)
+	}
+}
+
+func TestDropDuplicateCaptionsKeepsRealCaption(t *testing.T) {
+	in := "![Diagram](https://x/a.png)\n\nFigure 1: the full pipeline.\n"
+	if got := dropDuplicateCaptions(in); !strings.Contains(got, "Figure 1: the full pipeline.") {
+		t.Errorf("distinct caption wrongly dropped:\n%s", got)
+	}
+}
+
+func TestDropWidgetLinks(t *testing.T) {
+	in := "Last paragraph.\n\n[Share](https://blog/p/x?action=share)\n"
+	got := dropWidgetLinks(in)
+	if strings.Contains(got, "Share]") {
+		t.Errorf("widget link not dropped:\n%s", got)
+	}
+	if !strings.Contains(got, "Last paragraph.") {
+		t.Errorf("prose dropped:\n%s", got)
+	}
+}
+
+func TestDropWidgetLinksKeepsRealLink(t *testing.T) {
+	in := "See [Comment guidelines](https://blog/rules) before posting.\n"
+	if got := dropWidgetLinks(in); !strings.Contains(got, "Comment guidelines") {
+		t.Errorf("inline link wrongly dropped:\n%s", got)
+	}
+}
+
+func TestUnwrapSelfLinkedImage(t *testing.T) {
+	node := parse(t, `<p><a href="https://cdn/x/a_1600x900.jpeg"><img src="https://cdn/x/a.jpeg" alt="A"></a></p>`)
+	got, err := Convert(node, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(got, "](https://cdn/x/a_1600x900.jpeg)") {
+		t.Errorf("image still wrapped in self link:\n%s", got)
+	}
+	if !strings.Contains(got, "![A](https://cdn/x/a.jpeg)") {
+		t.Errorf("bare image lost:\n%s", got)
+	}
+}
+
+func TestUnwrapSelfLinkedImageKeepsArticleLink(t *testing.T) {
+	node := parse(t, `<p><a href="https://site/article"><img src="https://cdn/thumb.png" alt="T"></a></p>`)
+	got, err := Convert(node, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(got, "](https://site/article)") {
+		t.Errorf("link to article wrongly unwrapped:\n%s", got)
+	}
+}
+
 func TestTidy(t *testing.T) {
 	if got := Tidy("a\n\n\n\nb\n\n\n"); got != "a\n\nb\n" {
 		t.Errorf("Tidy = %q", got)
