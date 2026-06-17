@@ -36,3 +36,4 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   links in a heading are left intact.
 - Code whose highlighter laid each line out as its own element, with no literal
   newline between lines, regains its line breaks.
+- Standalone preview-counter gutters (a column of bare numbers like 01, 02, 03 that component docs render next to an example) are dropped, while a lone number in prose and any number inside code are kept.
