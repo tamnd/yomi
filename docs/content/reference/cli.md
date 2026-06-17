@@ -8,7 +8,8 @@ weight: 10
 yomi [command] [flags]
 ```
 
-Five commands: `read` turns one page into Markdown, `site` reads a whole site,
+Six commands: `read` turns one page into Markdown, `site` reads a whole site into
+a folder, `pack` bundles a whole site into one SQLite database or ZIM archive,
 `meta` prints a page's metadata as JSON, `links` lists a page's outbound links,
 and `serve` previews a folder of Markdown. Run `yomi <command> --help` for the
 canonical, up-to-date list.
@@ -66,6 +67,55 @@ paths, with a `SUMMARY.md` table of contents and a shared `media/` folder.
 | Flag | Default | Meaning |
 |------|---------|---------|
 | `--workers` | `4` | Concurrent page workers |
+
+Plus the [shared read flags](#shared-read-flags), applied to every page in the
+crawl.
+
+## yomi pack
+
+```
+yomi pack <url> [flags]
+```
+
+Crawls a whole site and bundles it into one file: a SQLite database of pages,
+links, and images (the default), or a ZIM offline archive you can open in Kiwix.
+The crawl is backed by the database, so it resumes where it left off and a later
+run only fetches what is new.
+
+An explicit `--format` wins; otherwise the output extension picks the format, so
+`-o site.zim` builds a ZIM and `-o site.db` builds a database without a
+`--format` flag.
+
+### Output
+
+| Flag | Default | Meaning |
+|------|---------|---------|
+| `--format` | `sqlite` | Output format: `sqlite` or `zim` |
+| `-o, --out` | `<host>.db` or `.zim` | Output file |
+| `--state` | the output with `.db` | SQLite store path for a ZIM build (the resumable sidecar) |
+
+### Resume and refresh
+
+| Flag | Default | Meaning |
+|------|---------|---------|
+| `--refresh` | `false` | Re-fetch every page, ignoring what is already stored |
+| `--max-age` | `0` | Re-fetch a stored page older than this duration (e.g. `24h`; 0 = never) |
+
+### ZIM metadata
+
+| Flag | Default | Meaning |
+|------|---------|---------|
+| `--title` | the home page title | Archive title |
+| `--description` | | Archive description |
+| `--language` | `eng` | Archive language as an ISO 639-3 code |
+| `--date` | today (UTC) | Archive date (`YYYY-MM-DD`) |
+| `--no-compress` | `false` | Store every entry raw, with no compression |
+
+### Scope and concurrency
+
+`pack` takes the same scope, limit, worker, and robots flags as
+[`yomi site`](#yomi-site): `-p, --max-pages`, `-d, --max-depth`, `--subdomains`,
+`--scope-prefix`, `--exclude`, `--workers`, and `--no-robots`.
 
 Plus the [shared read flags](#shared-read-flags), applied to every page in the
 crawl.

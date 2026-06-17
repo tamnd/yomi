@@ -5,6 +5,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-06-18
+
+A new way to keep a whole site: one file instead of a folder.
+
+### Added
+
+- `yomi pack <url>` crawls a site and bundles it into one file. The default format is a SQLite database with structured `pages`, `links`, and `images` tables; `--format zim` (or a `.zim` output name) builds a ZIM offline archive browsable in Kiwix, with each page rendered to a self-contained HTML document, in-scope links rewired to the sibling entries, and a generated contents page as the landing page.
+- A resumable, incremental crawl backing `pack`. The SQLite store is the crawl's backing store, so a re-run keeps every page already stored and fetches only what is new. `--refresh` re-fetches every page; `--max-age <dur>` re-fetches only the pages older than the cutoff. A ZIM build keeps its store as a sidecar (`--state` to relocate it) for the next incremental run.
+- Format inference from the output extension: `-o site.db`/`.sqlite` packs SQLite and `-o site.zim` packs ZIM without an explicit `--format`. ZIM metadata flags (`--title`, `--description`, `--language`, `--date`) and `--no-compress`. `pack` takes the same scope, limit, worker, and robots flags as `yomi site`.
+
 ## [0.1.2] - 2026-06-18
 
 A small pass for the people actually typing the commands.

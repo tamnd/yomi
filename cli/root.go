@@ -41,6 +41,7 @@ func newRoot() *cobra.Command {
 	}
 	root.AddCommand(newReadCmd())
 	root.AddCommand(newSiteCmd())
+	root.AddCommand(newPackCmd())
 	root.AddCommand(newMetaCmd())
 	root.AddCommand(newLinksCmd())
 	root.AddCommand(newServeCmd())

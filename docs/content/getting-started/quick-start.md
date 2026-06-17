@@ -79,7 +79,19 @@ table of contents at the top, then every page as its own section with an anchor,
 with each page's headings demoted so the file keeps a single clean outline. One
 file you can read top to bottom.
 
-## 5. Preview a folder
+## 5. Pack a site into one file
+
+```bash
+yomi pack paulgraham.com -o pg.db    # a SQLite database of the whole site
+yomi pack paulgraham.com -o pg.zim   # a ZIM archive you can open in Kiwix
+```
+
+`yomi pack` bundles a whole crawl into one file instead of a folder: a SQLite
+database with `pages`, `links`, and `images` tables, or a ZIM offline archive.
+The output extension picks the format. The crawl resumes, so running it again
+keeps every page already stored and fetches only what is new.
+
+## 6. Preview a folder
 
 ```bash
 yomi serve pg/
@@ -91,6 +103,6 @@ click through it in a browser.
 
 ## Where to go next
 
-- The [guides](/guides/) cover reading a page, crawling a site, the single vs
-  folder choice, and images in depth.
+- The [guides](/guides/) cover reading a page, crawling a site, packing a site
+  into one file, the single vs folder choice, and images in depth.
 - The [CLI reference](/reference/cli/) lists every command and flag.

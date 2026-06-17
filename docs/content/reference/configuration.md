@@ -51,11 +51,12 @@ land.
 
 ## Crawl and scope
 
-These apply to `yomi site`.
+The scope and limit flags apply to both `yomi site` and `yomi pack`; `--single`
+is specific to `yomi site`.
 
 | Flag | Default | Meaning |
 |------|---------|---------|
-| `-s, --single` | `false` | One combined file instead of a folder |
+| `-s, --single` | `false` | One combined file instead of a folder (`site` only) |
 | `-p, --max-pages` | `0` | Stop after N pages (0 = unlimited) |
 | `-d, --max-depth` | `0` | Depth cap (0 = unlimited) |
 | `--workers` | `4` | Concurrent page workers |
@@ -63,6 +64,25 @@ These apply to `yomi site`.
 | `--scope-prefix` | | Only crawl pages whose path starts with this prefix |
 | `--exclude` | | Path prefixes to skip (repeatable) |
 | `--no-robots` | `false` | Ignore `robots.txt` |
+
+## Pack
+
+These apply to `yomi pack`, which bundles a crawl into one SQLite database or ZIM
+archive. See the [packing a site](/guides/packing-a-site/) guide for the full
+walkthrough.
+
+| Flag | Default | Meaning |
+|------|---------|---------|
+| `--format` | `sqlite` | Output format: `sqlite` or `zim` (also inferred from a `.db`/`.zim` output name) |
+| `-o, --out` | `<host>.db`/`.zim` | Output file |
+| `--state` | the output with `.db` | SQLite store path for a ZIM build (the resumable sidecar) |
+| `--refresh` | `false` | Re-fetch every page, ignoring what is stored |
+| `--max-age` | `0` | Re-fetch a stored page older than this duration (0 = never) |
+| `--title` | home page title | ZIM archive title |
+| `--description` | | ZIM archive description |
+| `--language` | `eng` | ZIM archive language (ISO 639-3) |
+| `--date` | today (UTC) | ZIM archive date (`YYYY-MM-DD`) |
+| `--no-compress` | `false` | ZIM: store every entry raw, with no compression |
 
 ## Environment variables
 

@@ -6,6 +6,14 @@ weight: 40
 
 The authoritative, commit-level history lives in [`CHANGELOG.md`](https://github.com/tamnd/yomi/blob/main/CHANGELOG.md) and on the [releases page](https://github.com/tamnd/yomi/releases). This page summarises each version.
 
+## v0.2.0
+
+A new way to keep a whole site: one file instead of a folder.
+
+- **`yomi pack <url>`** crawls a site and bundles it into one file. The default is a SQLite database with clean `pages`, `links`, and `images` tables you can query with SQL; `--format zim` (or a `.zim` output name) builds a ZIM offline archive you can read in Kiwix, with each page rendered to a self-contained HTML document, internal links rewired to the sibling entries, and a generated contents page.
+- **Resumable, incremental crawls.** The crawl is backed by the SQLite store, so a pack resumes where it left off and a later run keeps every page already stored, fetching only what is new. `--refresh` re-reads everything; `--max-age` re-reads only the pages older than a cutoff, so a daily mirror stays current without reading the whole site. A ZIM build keeps its store as a sidecar for the next run.
+- **The format picks itself.** A `.db`/`.sqlite` or `.zim` output name selects the format, so `-o site.zim` just builds a ZIM. ZIM metadata flags (`--title`, `--description`, `--language`, `--date`) and `--no-compress` round out the archive, and pack takes the same scope, limit, worker, and robots flags as `yomi site`.
+
 ## v0.1.2
 
 A small pass for the people actually typing the commands.
