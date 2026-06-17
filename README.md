@@ -8,7 +8,7 @@
 
 **yomi** (読み, "reading") reads a web page, or a whole website, into clean Markdown. It fetches the page, renders the JavaScript in real headless Chrome when the page needs it, throws away the nav and the cookie banner and the share rail, and hands you the article as Markdown with a small front-matter block. One URL gives you one document. A seed URL gives you the whole site, as a folder of files or one combined page.
 
-[Install](#install) • [Quick start](#quick-start) • [Commands](#commands) • [Read a page](#read-a-page) • [Read a whole site](#read-a-whole-site) • [Images](#images) • [How it works](#how-it-works)
+[Install](#install) • [Quick start](#quick-start) • [Commands](#commands) • [Read a page](#read-a-page) • [Read a whole site](#read-a-whole-site) • [Pack a site into one file](#pack-a-site-into-one-file) • [Images](#images) • [How it works](#how-it-works)
 
 ![yomi reading a page into Markdown, saving it to a file, and printing its metadata as JSON](docs/static/demo.gif)
 
@@ -90,6 +90,7 @@ That is the whole loop. The rest of this README is the interesting flags.
 | --- | --- |
 | `yomi read <url>` | Read one page to stdout, or to a file with `-o`. |
 | `yomi site <url>` | Crawl a site into a folder, or one combined file with `--single`. |
+| `yomi pack <url>` | Crawl a site into one file: a SQLite database or a ZIM archive, resumable. |
 | `yomi meta <url>` | Print a page's metadata as JSON, without the body. |
 | `yomi links <url>` | List the real links in a page's article body. |
 | `yomi serve [dir]` | Preview a folder of Markdown in your browser. |
@@ -171,6 +172,45 @@ The flags you will actually reach for:
 | `--exclude` | | Path prefixes to skip (repeatable) |
 | `--workers` | `4` | How many pages to read at once |
 | `--no-robots` | `false` | Ignore `robots.txt` (be nice) |
+
+## Pack a site into one file
+
+`yomi site` gives you a folder of files. `yomi pack` gives you one file: a crawl of the whole site bundled into a single SQLite database, or a single ZIM archive you can open in [Kiwix](https://kiwix.org). The crawl is backed by the database either way, so a pack resumes where it left off and a later run only fetches what changed.
+
+```bash
+# A SQLite database of the whole site (the default format)
+yomi pack paulgraham.com -o pg.db
+
+# A ZIM offline archive, browsable in Kiwix
+yomi pack paulgraham.com -o pg.zim
+```
+
+The output extension picks the format, so `-o pg.zim` builds a ZIM and `-o pg.db` builds a database without you also passing `--format`. With no `-o`, pack writes `<host>.db` (or `<host>.zim`).
+
+**SQLite** is the format to reach for when you want to query the site. Every page is a row in a clean `pages` table, with its title, byline, language, word count, reading time, and the Markdown body, alongside `links` and `images` tables that join back to it:
+
+```bash
+yomi pack paulgraham.com -o pg.db
+sqlite3 pg.db "select title, word_count, reading_time from pages order by word_count desc limit 5;"
+```
+
+**ZIM** is the format to reach for when you want to read the site offline. pack renders each page to a self-contained HTML document, rewires the in-scope links to point at the sibling entries, generates a contents page as the landing page, and writes one OpenZIM file. Open it in Kiwix on any device, or serve it with `kiwix-serve`. A ZIM build keeps its SQLite store next to the archive as a sidecar, so the next run is incremental too.
+
+The crawl resumes by default. Run pack again and it keeps every page already stored, fetching only pages it has not seen:
+
+```bash
+yomi pack paulgraham.com -o pg.db   # first run: reads the whole site
+yomi pack paulgraham.com -o pg.db   # again: new 0, every page kept
+```
+
+Two flags drive a refresh. `--refresh` re-fetches every page, ignoring what is stored. `--max-age` re-fetches only the pages older than a cutoff, so a daily mirror stays current without reading the whole site each time:
+
+```bash
+yomi pack paulgraham.com -o pg.db --refresh        # re-read everything
+yomi pack paulgraham.com -o pg.db --max-age 24h    # re-read pages older than a day
+```
+
+pack takes the same scope, limit, worker, and robots flags as `yomi site` (`--scope-prefix`, `--max-pages`, `--max-depth`, `--subdomains`, `--exclude`, `--workers`, `--no-robots`), plus ZIM metadata flags (`--title`, `--description`, `--language`, `--date`) and `--no-compress` for an uncompressed archive.
 
 ## Images
 

@@ -53,4 +53,6 @@ It also differs from pasting a page into a Markdown converter. A converter takes
 
 A single page is the small case. `yomi site` crawls breadth-first from a seed URL, staying within the seed's host (and optionally its subdomains), honouring `robots.txt` the same way kage does. By default it writes a folder of `.md` files mirroring the URL paths, with a `SUMMARY.md` index and a shared `media/` folder. With `--single` it assembles the whole crawl into one Markdown file instead, with a table of contents and per-page sections. The [single vs folder](/guides/single-vs-folder/) guide covers when to use each.
 
+When you want the whole site as one file rather than a folder, `yomi pack` bundles a crawl into a single SQLite database you can query or a single ZIM archive you can read offline in Kiwix. The crawl is backed by the database, so a pack resumes where it left off and a later run fetches only what changed. The [packing a site](/guides/packing-a-site/) guide covers both formats.
+
 Next: [install yomi](/getting-started/installation/).
