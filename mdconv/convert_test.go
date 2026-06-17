@@ -242,6 +242,83 @@ func TestUnwrapSelfLinkedImageKeepsArticleLink(t *testing.T) {
 	}
 }
 
+func TestDecodeProseEntities(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"BinOp -&gt; expr and node &lt;name&gt; here", "BinOp -> expr and node <name> here"},
+		{"requires &gt;=22.12.0 today", "requires >=22.12.0 today"},
+		{"a &amp; b, 3 &lt; 5", "a & b, 3 < 5"},
+	}
+	for _, c := range cases {
+		if got := decodeProseEntities(c.in); got != c.want {
+			t.Errorf("decodeProseEntities(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}
+
+func TestDecodeProseEntitiesSkipsCode(t *testing.T) {
+	in := "Inline `a &lt; b` stays, prose a &lt; b does not.\n"
+	got := decodeProseEntities(in)
+	if !strings.Contains(got, "`a &lt; b`") {
+		t.Errorf("entity inside inline code was decoded:\n%s", got)
+	}
+	if !strings.Contains(got, "prose a < b does not") {
+		t.Errorf("prose entity not decoded:\n%s", got)
+	}
+}
+
+func TestDecodeProseEntitiesSkipsFence(t *testing.T) {
+	in := "```\nx &lt; y\n```\n"
+	if got := decodeProseEntities(in); got != in {
+		t.Errorf("entity inside fence decoded:\n%s", got)
+	}
+}
+
+func TestDropNeedlessEscapes(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{`the system\_specs section`, "the system_specs section"},
+		{`server\_session\_id is unique`, "server_session_id is unique"},
+		{`took \~2ms on my machine`, "took ~2ms on my machine"},
+	}
+	for _, c := range cases {
+		if got := dropNeedlessEscapes(c.in); got != c.want {
+			t.Errorf("dropNeedlessEscapes(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}
+
+func TestDropNeedlessEscapesKeepsCodeBackslash(t *testing.T) {
+	in := "Use `re.sub(r\"\\_\", x)` here, but not system\\_specs.\n"
+	got := dropNeedlessEscapes(in)
+	if !strings.Contains(got, `\_`) {
+		t.Errorf("backslash inside inline code wrongly stripped:\n%s", got)
+	}
+	if !strings.Contains(got, "system_specs") {
+		t.Errorf("prose escape not stripped:\n%s", got)
+	}
+}
+
+func TestDropNeedlessEscapesKeepsStrikethrough(t *testing.T) {
+	// A pair of escaped tildes that would form strikethrough is left escaped.
+	in := `price \~\~10\~\~ dollars`
+	if got := dropNeedlessEscapes(in); !strings.Contains(got, `\~\~`) {
+		t.Errorf("escaped strikethrough delimiters wrongly stripped:\n%s", got)
+	}
+}
+
+func TestConvertEmptyHrefLinkUnwrapped(t *testing.T) {
+	node := parse(t, `<p>see <a href="">writers</a> here</p>`)
+	got, err := Convert(node, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(got, "writers]()") || strings.Contains(got, "[writers]") {
+		t.Errorf("empty-href link not unwrapped:\n%s", got)
+	}
+	if !strings.Contains(got, "see writers here") {
+		t.Errorf("link text lost:\n%s", got)
+	}
+}
+
 func TestTidy(t *testing.T) {
 	if got := Tidy("a\n\n\n\nb\n\n\n"); got != "a\n\nb\n" {
 		t.Errorf("Tidy = %q", got)

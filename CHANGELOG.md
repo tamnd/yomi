@@ -10,6 +10,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - A caption that only repeats the alt text of the image it follows is dropped, so an article figure no longer prints the same line twice, while a caption that adds information is kept.
 - A picture linked to its own full-size file is unwrapped to a plain image, since that lightbox link does nothing in a Markdown document, while an image that links to an article or any other page keeps its link.
 - A standalone share-or-subscribe button left in the body, such as a lone Share or Subscribe link on its own line, is removed.
+- A bare angle bracket the converter escaped to keep the Markdown safe is restored to its literal character in prose, so an arrow like a -> b, a comparison like >=22.12.0, and a placeholder like <namespace> read as written instead of showing &gt; and &lt;. Code keeps its bytes exactly as they are.
+- A backslash the converter added in front of a character that did not need escaping is dropped in prose, so an identifier like system_specs and an approximation like ~2ms lose the stray backslash, while a backslash inside code and an escape that would otherwise start emphasis or strikethrough are kept.
+- A link the page left without a destination renders as its text alone, instead of an empty link with nowhere to go.
 
 ## [0.1.0] - 2026-06-17
 
