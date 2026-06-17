@@ -55,10 +55,16 @@ func FromHTML(body []byte, pageURL string) (*Article, error) {
 	art := &Article{}
 	walk(doc, base, art)
 
-	rd, err := readability.FromReader(bytes.NewReader(body), base)
+	// Keep class attributes through readability so syntax-highlighter language
+	// hints (class="language-go", data-lang, and friends) survive to the code
+	// normalisation pass below; readability strips all classes by default.
+	parser := readability.NewParser()
+	parser.KeepClasses = true
+	rd, err := parser.Parse(bytes.NewReader(body), base)
 	if err == nil && rd.Node != nil {
 		art.Node = rd.Node
 		sanitize.CleanTree(art.Node, sanitize.Options{})
+		normalizeCode(art.Node)
 		fillFromReadability(art, rd)
 	} else {
 		art.LowConfidence = true

@@ -7,9 +7,14 @@ package mdconv
 
 import (
 	"net/url"
+	"regexp"
 	"strings"
 
-	htmltomarkdown "github.com/JohannesKaufmann/html-to-markdown/v2"
+	"github.com/JohannesKaufmann/html-to-markdown/v2/converter"
+	"github.com/JohannesKaufmann/html-to-markdown/v2/plugin/base"
+	"github.com/JohannesKaufmann/html-to-markdown/v2/plugin/commonmark"
+	"github.com/JohannesKaufmann/html-to-markdown/v2/plugin/strikethrough"
+	"github.com/JohannesKaufmann/html-to-markdown/v2/plugin/table"
 	"golang.org/x/net/html"
 )
 
@@ -32,11 +37,73 @@ type Options struct {
 // mutated in place by the rewrite, which is fine because it is a per-page copy.
 func Convert(node *html.Node, opts Options) (string, error) {
 	rewriteRefs(node, opts)
-	out, err := htmltomarkdown.ConvertNode(node)
+	out, err := newConverter().ConvertNode(node)
 	if err != nil {
 		return "", err
 	}
-	return Tidy(string(out)), nil
+	return Tidy(cleanHeadings(string(out))), nil
+}
+
+var (
+	headingLine = regexp.MustCompile(`^(#{1,6})\s+(.*?)\s*$`)
+	mdLink      = regexp.MustCompile(`\[([^\]]*)\]\(([^)]*)\)`)
+)
+
+// cleanHeadings strips the permalink decorations documentation generators hang
+// off their headings: a trailing pilcrow or hash link, an empty link, or a
+// heading whose whole text is a self-anchor. It unwraps fragment-only links to
+// their visible text and drops links whose text is just a permalink glyph, while
+// leaving real cross-reference links (those with an absolute or relative URL)
+// untouched. Lines inside code fences are never rewritten.
+func cleanHeadings(md string) string {
+	lines := strings.Split(md, "\n")
+	inFence := false
+	for i, ln := range lines {
+		if strings.HasPrefix(strings.TrimSpace(ln), "```") {
+			inFence = !inFence
+			continue
+		}
+		if inFence {
+			continue
+		}
+		m := headingLine.FindStringSubmatch(ln)
+		if m == nil {
+			continue
+		}
+		cleaned := mdLink.ReplaceAllStringFunc(m[2], func(s string) string {
+			sub := mdLink.FindStringSubmatch(s)
+			text, target := sub[1], strings.TrimSpace(sub[2])
+			// A real cross-reference (non-empty, non-fragment URL) stays as written.
+			if target != "" && !strings.HasPrefix(target, "#") {
+				return s
+			}
+			switch strings.TrimSpace(text) {
+			case "", "¶", "#", "§", "🔗":
+				return ""
+			}
+			return text
+		})
+		cleaned = strings.TrimRight(cleaned, " \t")
+		if strings.TrimSpace(cleaned) == "" {
+			continue
+		}
+		lines[i] = m[1] + " " + cleaned
+	}
+	return strings.Join(lines, "\n")
+}
+
+// newConverter builds the html-to-markdown converter yomi uses. Beyond the
+// default base and commonmark plugins it adds GitHub-Flavored tables and
+// strikethrough, so documentation tables become Markdown tables rather than a
+// flattened run of cells. A fresh converter per call keeps conversions
+// independent across the concurrent site crawler.
+func newConverter() *converter.Converter {
+	return converter.NewConverter(converter.WithPlugins(
+		base.NewBasePlugin(),
+		commonmark.NewCommonmarkPlugin(),
+		table.NewTablePlugin(),
+		strikethrough.NewStrikethroughPlugin(),
+	))
 }
 
 // rewriteRefs walks node rewriting every <a href> and <img src> through the

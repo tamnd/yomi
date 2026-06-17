@@ -19,3 +19,20 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   page looks JavaScript-gated.
 - Image policies: leave remote (default), download next to the Markdown, or inline
   as data URIs.
+
+### Changed
+
+- Fenced code blocks now carry a language info string. Readability used to strip
+  the highlighter class that names the language, so every fence came out bare. The
+  extractor now keeps that class and reads the language from the conventions doc
+  sites use: `language-`/`lang-` classes, a GitHub `highlight-source-` wrapper, a
+  Sphinx/Pygments `highlight-` wrapper, MDN's `brush:` marker, and `data-language`
+  attributes, with a few lexer aliases folded to their common name.
+- HTML tables now convert to Markdown tables instead of a flattened run of cells,
+  and strikethrough is recognised, by enabling the GitHub-Flavored table and
+  strikethrough converters.
+- Headings drop their permalink decorations (a trailing pilcrow or hash link, an
+  empty link, or a heading that is only a self-anchor), while real cross-reference
+  links in a heading are left intact.
+- Code whose highlighter laid each line out as its own element, with no literal
+  newline between lines, regains its line breaks.

@@ -88,6 +88,71 @@ func TestConvertRewriteImage(t *testing.T) {
 	}
 }
 
+func TestConvertTable(t *testing.T) {
+	node := parse(t, `<table><thead><tr><th>Class</th><th>Styles</th></tr></thead>`+
+		`<tbody><tr><td>flex-1</td><td>flex: 1;</td></tr></tbody></table>`)
+	got, err := Convert(node, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(got, "| Class") || !strings.Contains(got, "| Styles") {
+		t.Errorf("table header not rendered as Markdown table:\n%s", got)
+	}
+	if !strings.Contains(got, "---") {
+		t.Errorf("table delimiter row missing:\n%s", got)
+	}
+	if !strings.Contains(got, "flex-1") || !strings.Contains(got, "flex: 1;") {
+		t.Errorf("table cells missing:\n%s", got)
+	}
+}
+
+func TestConvertCodeLanguageFence(t *testing.T) {
+	node := parse(t, `<pre><code class="language-go">package main</code></pre>`)
+	got, err := Convert(node, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(got, "```go") {
+		t.Errorf("language info string missing from fence:\n%s", got)
+	}
+}
+
+func TestCleanHeadings(t *testing.T) {
+	cases := []struct {
+		name, in, want string
+	}{
+		{"sphinx-pilcrow",
+			`## Numbers[¶](#numbers "Link to this heading")`,
+			"## Numbers"},
+		{"node-empty-and-hash",
+			`### Promise example[]()[#](#promise-example)`,
+			"### Promise example"},
+		{"self-anchor-unwrap",
+			`## [Examples](#examples)`,
+			"## Examples"},
+		{"keep-crossref",
+			"### [path()](https://docs/ref#path \"path\") argument: route",
+			"### [path()](https://docs/ref#path \"path\") argument: route"},
+		{"not-a-heading",
+			`See [¶](#x) here`,
+			`See [¶](#x) here`},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := cleanHeadings(c.in); got != c.want {
+				t.Errorf("cleanHeadings(%q) = %q, want %q", c.in, got, c.want)
+			}
+		})
+	}
+}
+
+func TestCleanHeadingsSkipsFence(t *testing.T) {
+	in := "```\n# Numbers[¶](#numbers)\n```\n"
+	if got := cleanHeadings(in); got != in {
+		t.Errorf("heading inside fence rewritten:\n%s", got)
+	}
+}
+
 func TestTidy(t *testing.T) {
 	if got := Tidy("a\n\n\n\nb\n\n\n"); got != "a\n\nb\n" {
 		t.Errorf("Tidy = %q", got)
