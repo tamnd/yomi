@@ -40,7 +40,8 @@ type PackOptions struct {
 	Description string // zim metadata: archive description
 	Language    string // zim metadata: ISO 639-3 language code
 	Date        string // zim metadata: archive date (YYYY-MM-DD)
-	Version     string // tool version recorded as the archive's creator
+	Version     string // tool version, recorded in the archive's Scraper metadata
+	Icon        string // zim: path to a PNG used as the Kiwix library icon (48x48)
 }
 
 // PackResult reports the outcome of a pack run.

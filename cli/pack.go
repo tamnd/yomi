@@ -29,6 +29,7 @@ type packFlags struct {
 	description string
 	language    string
 	date        string
+	icon        string
 	maxPages    int
 	maxDepth    int
 	workers     int
@@ -72,6 +73,7 @@ func newPackCmd() *cobra.Command {
 	fs.StringVar(&f.description, "description", "", "zim: archive description")
 	fs.StringVar(&f.language, "language", "eng", "zim: archive language as an ISO 639-3 code")
 	fs.StringVar(&f.date, "date", time.Now().UTC().Format("2006-01-02"), "zim: archive date (YYYY-MM-DD)")
+	fs.StringVar(&f.icon, "icon", "", "zim: path to a 48x48 PNG used as the Kiwix library icon")
 	fs.IntVarP(&f.maxPages, "max-pages", "p", 0, "stop after N pages (0 = unlimited)")
 	fs.IntVarP(&f.maxDepth, "max-depth", "d", 0, "link-follow depth cap (0 = unlimited)")
 	fs.IntVar(&f.workers, "workers", 4, "concurrent page workers")
@@ -124,6 +126,7 @@ func runPack(ctx context.Context, rawURL string, f *packFlags) error {
 		Description: f.description,
 		Language:    f.language,
 		Date:        f.date,
+		Icon:        f.icon,
 		Version:     Version,
 	}
 

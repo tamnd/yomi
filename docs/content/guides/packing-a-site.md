@@ -77,12 +77,16 @@ yomi pack paulgraham.com -o pg.zim \
   --title "Paul Graham's Essays" \
   --description "An offline archive of paulgraham.com" \
   --language eng \
-  --date 2026-06-18
+  --date 2026-06-18 \
+  --icon pg.png
 ```
 
 `--title` defaults to the home page title, `--language` to `eng`, and `--date` to
-today. Pass `--no-compress` to store every entry raw, which makes a larger file
-that opens without decompression.
+today. The archive carries the `Title`, `Description`, `Creator`, `Publisher`,
+`Date` and `Counter` metadata Kiwix shows in its library, plus a 48x48 icon for
+the book tile. yomi draws a built-in reading icon by default; pass `--icon` with
+a PNG to use the site's own logo instead. Pass `--no-compress` to store every
+entry raw, which makes a larger file that opens without decompression.
 
 ## The crawl resumes
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"sort"
 	"strings"
 
 	"github.com/tamnd/kage/zim"
@@ -48,13 +49,25 @@ func buildZIM(st *store, popts PackOptions, host, outPath string) (int64, error)
 	w.AddMetadata("Name", host)
 	w.AddMetadata("Language", firstNonEmpty(popts.Language, "eng"))
 	w.AddMetadata("Description", firstNonEmpty(popts.Description, "Offline reading of "+host+", packed by yomi."))
-	w.AddMetadata("Creator", firstNonEmpty(popts.Version, "yomi"))
+	// Creator is the origin of the content, the site itself; Publisher and
+	// Scraper name the tool that built the archive.
+	w.AddMetadata("Creator", host)
 	w.AddMetadata("Publisher", "yomi")
-	w.AddMetadata("Scraper", firstNonEmpty(popts.Version, "yomi"))
+	w.AddMetadata("Scraper", strings.TrimSpace("yomi "+popts.Version))
+	// The archive carries no full-text (Xapian) index, only the title index, so
+	// tell Kiwix not to advertise search-in-book it cannot serve.
+	w.AddMetadata("Tags", "_ftindex:no")
 	if popts.Date != "" {
 		w.AddMetadata("Date", popts.Date)
 	}
 
+	// The library icon Kiwix shows for the archive. A caller-supplied PNG wins;
+	// otherwise a built-in reading icon, so the tile is never a blank placeholder.
+	if icon := illustration(popts.Icon); icon != nil {
+		w.AddMetadataBytes("Illustration_48x48@1", "image/png", icon)
+	}
+
+	mimeCounts := map[string]int{}
 	for i, p := range pages {
 		body, err := renderMarkdown(p.Markdown)
 		if err != nil {
@@ -69,11 +82,16 @@ func buildZIM(st *store, popts PackOptions, host, outPath string) (int64, error)
 		})
 		doc := pageHTML(p, body, prefix+contentsURL)
 		w.AddContent(zim.NamespaceContent, zurls[i], titleOr(p), "text/html", []byte(doc))
+		mimeCounts["text/html"]++
 	}
 
 	w.AddContent(zim.NamespaceContent, contentsURL, title, "text/html",
 		[]byte(indexHTML(title, host, pages, zurls)))
+	mimeCounts["text/html"]++
 	w.SetMainPage(zim.NamespaceContent, contentsURL)
+
+	// Counter lets Kiwix report the archive's content breakdown by MIME type.
+	w.AddMetadata("Counter", encodeCounter(mimeCounts))
 
 	f, err := os.Create(outPath)
 	if err != nil {
@@ -135,4 +153,31 @@ func firstNonEmpty(vals ...string) string {
 		}
 	}
 	return ""
+}
+
+// illustration returns the PNG bytes for the archive's library icon. When path
+// is set it reads that file; a read failure falls back to the built-in icon so a
+// bad path never aborts the pack. With no path it returns the built-in icon.
+func illustration(path string) []byte {
+	if path != "" {
+		if data, err := os.ReadFile(path); err == nil && len(data) > 0 {
+			return data
+		}
+	}
+	return defaultIllustration()
+}
+
+// encodeCounter renders a MIME-type histogram as the Kiwix Counter value, the
+// "mime=count" pairs joined by semicolons, in a stable order.
+func encodeCounter(counts map[string]int) string {
+	mimes := make([]string, 0, len(counts))
+	for m := range counts {
+		mimes = append(mimes, m)
+	}
+	sort.Strings(mimes)
+	parts := make([]string, 0, len(mimes))
+	for _, m := range mimes {
+		parts = append(parts, fmt.Sprintf("%s=%d", m, counts[m]))
+	}
+	return strings.Join(parts, ";")
 }

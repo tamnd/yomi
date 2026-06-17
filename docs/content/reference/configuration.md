@@ -82,7 +82,14 @@ walkthrough.
 | `--description` | | ZIM archive description |
 | `--language` | `eng` | ZIM archive language (ISO 639-3) |
 | `--date` | today (UTC) | ZIM archive date (`YYYY-MM-DD`) |
+| `--icon` | a built-in icon | ZIM: path to a 48x48 PNG shown as the Kiwix library tile |
 | `--no-compress` | `false` | ZIM: store every entry raw, with no compression |
+
+A ZIM build also writes the metadata Kiwix reads to present the archive: a
+`Title`, `Description`, `Language`, `Date`, `Name`, `Creator` (the site),
+`Publisher` and `Scraper` (yomi), a `Counter` of the packed pages, and an
+`Illustration_48x48@1` library icon. Pass `--icon` to replace the built-in icon
+with the site's own logo.
 
 ## Environment variables
 
