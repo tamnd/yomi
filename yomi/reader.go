@@ -56,6 +56,7 @@ type rewrite struct {
 // read fetches rawURL, extracts the article, converts it, and returns a Page.
 // rw is the site rewiring strategy; pass the zero rewrite for a standalone read.
 func (r *reader) read(ctx context.Context, rawURL string, rw rewrite) (*Page, error) {
+	rawURL = ensureScheme(rawURL)
 	resp, err := r.f.Fetch(ctx, rawURL)
 	if err != nil {
 		return nil, err
@@ -126,6 +127,22 @@ func collectLinks(links []extract.Link, fn func(abs string) (string, bool)) []Li
 		out = append(out, lk)
 	}
 	return out
+}
+
+// ensureScheme defaults a scheme-less URL to https, so a bare host like
+// "example.com/post" reads the same way the site command already accepts it.
+// A URL that names its own scheme, or a protocol-relative "//host" one, is left
+// to resolve on its own.
+func ensureScheme(raw string) string {
+	raw = strings.TrimSpace(raw)
+	switch {
+	case raw == "", strings.Contains(raw, "://"):
+		return raw
+	case strings.HasPrefix(raw, "//"):
+		return "https:" + raw
+	default:
+		return "https://" + raw
+	}
 }
 
 func countWords(md string) int { return len(strings.Fields(md)) }
