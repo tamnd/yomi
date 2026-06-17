@@ -1,0 +1,126 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# Cancel an in-flight run when a branch is pushed again.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Build and test on Linux and macOS with the race detector on. gofmt and vet
+  # run here too so a formatting slip fails fast on both platforms. The suite
+  # includes Chrome-driven tests for the render path, so the runners install a
+  # browser first; tests that find none skip themselves, so the job still passes
+  # if a future runner image drops Chrome.
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          check-latest: true
+          cache: true
+      - name: install chromium (linux)
+        if: matrix.os == 'ubuntu-latest'
+        uses: browser-actions/setup-chrome@v1
+        id: chrome
+      - name: gofmt
+        run: |
+          unformatted=$(gofmt -s -l .)
+          if [ -n "$unformatted" ]; then
+            echo "These files need gofmt -s -w:"
+            echo "$unformatted"
+            exit 1
+          fi
+      - name: go vet
+        run: go vet ./...
+      - name: build
+        run: go build ./...
+      # The GitHub Ubuntu runner disables unprivileged user namespaces (AppArmor),
+      # so Chrome's sandbox cannot initialize there. The kage browser pool yomi
+      # reuses reads IN_DOCKER as the documented escape hatch for exactly that
+      # case; macOS does not need it, so it stays empty on that leg.
+      - name: test
+        env:
+          CHROME_BIN: ${{ steps.chrome.outputs.chrome-path }}
+          IN_DOCKER: ${{ matrix.os == 'ubuntu-latest' && '1' || '' }}
+        run: go test -race -count=1 -coverprofile=coverage.out ./...
+      - name: coverage summary
+        if: matrix.os == 'ubuntu-latest'
+        run: go tool cover -func=coverage.out | tail -1
+
+  # golangci-lint bundles staticcheck, govet, ineffassign, errcheck, unused and
+  # more, so it is the main quality gate.
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          check-latest: true
+          cache: true
+      - uses: golangci/golangci-lint-action@v8
+        with:
+          version: latest
+
+  # Scan the module and its dependencies for known vulnerabilities.
+  govulncheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          check-latest: true
+          cache: true
+      - name: govulncheck
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
+
+  # yomi is MIT and must stay that way: no dependency may carry a copyleft
+  # licence. go-licenses fails the job if any module's licence is not on the
+  # permissive allow-list, so a GPL import is caught the moment it lands.
+  licenses:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          check-latest: true
+          cache: true
+      - name: go-licenses check
+        run: |
+          go install github.com/google/go-licenses@latest
+          go-licenses check ./... \
+            --allowed_licenses=MIT,Apache-2.0,BSD-2-Clause,BSD-3-Clause,ISC,MPL-2.0,Unlicense,CC0-1.0
+
+  # Confirm go.mod and go.sum are tidy: a PR that adds an import without running
+  # go mod tidy fails here instead of breaking a later release.
+  tidy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          check-latest: true
+          cache: true
+      - name: go mod tidy is clean
+        run: |
+          go mod tidy
+          git diff --exit-code -- go.mod go.sum

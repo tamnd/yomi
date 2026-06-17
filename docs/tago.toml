@@ -1,0 +1,10 @@
+title       = "yomi"
+baseURL     = "https://yomi.tamnd.com/"
+description = "yomi (読み, reading) reads a web page, or a whole website, into clean Markdown. It renders JavaScript when a page needs it, extracts the main content, and converts what is left to Markdown, as a folder of files or a single combined document."
+contentDir  = "content"
+outputDir   = "public"
+theme       = "tago-doks"
+syntaxHighlight = "true"
+
+[params]
+github = "https://github.com/tamnd/yomi"
