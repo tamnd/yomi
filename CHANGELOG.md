@@ -5,6 +5,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- A 48x48 library icon in every ZIM build, so Kiwix shows a real book tile instead of a blank placeholder. yomi draws a built-in reading icon; `--icon <png>` uses the site's own logo instead.
+- ZIM `Counter` metadata recording the packed page count by MIME type, which Kiwix reads for its library listing.
+
+### Changed
+
+- ZIM `Creator` metadata is now the packed site rather than the tool version, and `Scraper` names yomi and its version, matching how Kiwix expects the two keys to read.
+
 ## [0.2.0] - 2026-06-18
 
 A new way to keep a whole site: one file instead of a folder.

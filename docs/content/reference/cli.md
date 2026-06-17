@@ -109,6 +109,7 @@ An explicit `--format` wins; otherwise the output extension picks the format, so
 | `--description` | | Archive description |
 | `--language` | `eng` | Archive language as an ISO 639-3 code |
 | `--date` | today (UTC) | Archive date (`YYYY-MM-DD`) |
+| `--icon` | a built-in icon | Path to a 48x48 PNG shown as the Kiwix library tile |
 | `--no-compress` | `false` | Store every entry raw, with no compression |
 
 ### Scope and concurrency

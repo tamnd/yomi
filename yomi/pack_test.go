@@ -1,8 +1,10 @@
 package yomi
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"image/png"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -178,6 +180,66 @@ func TestPackZIM(t *testing.T) {
 	body := string(home.Data)
 	if !strings.Contains(body, "<h1>") || !strings.Contains(body, ">source<") {
 		t.Errorf("article HTML not well formed:\n%s", body[:min(len(body), 400)])
+	}
+}
+
+// TestPackZIMMetadata locks in the metadata Kiwix needs to show the archive
+// nicely: the descriptive keys, a Counter, and a PNG library icon.
+func TestPackZIMMetadata(t *testing.T) {
+	srv := newSiteServer()
+	defer srv.Close()
+	dir := t.TempDir()
+	out := filepath.Join(dir, "site.zim")
+	state := filepath.Join(dir, "site.db")
+
+	if _, err := Pack(context.Background(), srv.URL, packDefaults(out, state, PackZIM)); err != nil {
+		t.Fatal(err)
+	}
+	r, err := zim.Open(out)
+	if err != nil {
+		t.Fatalf("open zim: %v", err)
+	}
+	defer func() { _ = r.Close() }()
+
+	meta := map[string]zim.Entry{}
+	for i := uint32(0); i < r.Count(); i++ {
+		e, err := r.EntryAt(i)
+		if err != nil {
+			t.Fatalf("entry %d: %v", i, err)
+		}
+		if e.Namespace == zim.NamespaceMetadata {
+			meta[e.URL] = e
+		}
+	}
+
+	for _, k := range []string{"Title", "Description", "Language", "Name", "Date", "Creator", "Publisher", "Scraper", "Counter", "Illustration_48x48@1"} {
+		if _, ok := meta[k]; !ok {
+			t.Errorf("missing metadata %q", k)
+		}
+	}
+	// Creator is the site, not the tool version.
+	if got := string(meta["Creator"].Data); got == "" || got == "dev" {
+		t.Errorf("Creator = %q, want the content origin", got)
+	}
+	// Scraper names the tool.
+	if got := string(meta["Scraper"].Data); !strings.HasPrefix(got, "yomi") {
+		t.Errorf("Scraper = %q, want a yomi prefix", got)
+	}
+	// Counter reports the HTML page count.
+	if got := string(meta["Counter"].Data); !strings.Contains(got, "text/html=") {
+		t.Errorf("Counter = %q, want a text/html tally", got)
+	}
+	// The icon is a real 48x48 PNG.
+	icon := meta["Illustration_48x48@1"]
+	if icon.MimeType != "image/png" {
+		t.Errorf("icon mime = %q, want image/png", icon.MimeType)
+	}
+	img, err := png.Decode(bytes.NewReader(icon.Data))
+	if err != nil {
+		t.Fatalf("decode icon: %v", err)
+	}
+	if b := img.Bounds(); b.Dx() != 48 || b.Dy() != 48 {
+		t.Errorf("icon size = %dx%d, want 48x48", b.Dx(), b.Dy())
 	}
 }
 
