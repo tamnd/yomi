@@ -85,7 +85,7 @@ func TestPackSQLite(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer st.close()
+	defer func() { _ = st.close() }()
 	pages, err := st.allPages()
 	if err != nil {
 		t.Fatal(err)
@@ -155,7 +155,7 @@ func TestPackZIM(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open zim: %v", err)
 	}
-	defer r.Close()
+	defer func() { _ = r.Close() }()
 
 	// The main page is the generated contents page and lists the articles.
 	ns, url, ok := r.MainPageRef()

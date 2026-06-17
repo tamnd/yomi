@@ -168,7 +168,7 @@ func (s *store) internalLinks(pageID int64) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []string
 	for rows.Next() {
 		var u string
@@ -253,7 +253,7 @@ FROM pages`)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var pages []*Page
 	ids := map[int64]*Page{}
@@ -306,7 +306,7 @@ func (s *store) loadLinks(ids map[int64]*Page) error {
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		var (
 			pid      int64
@@ -331,7 +331,7 @@ func (s *store) loadImages(ids map[int64]*Page) error {
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		var (
 			pid int64
