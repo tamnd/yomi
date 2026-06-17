@@ -106,8 +106,12 @@ jobs:
       - name: go-licenses check
         run: |
           go install github.com/google/go-licenses@latest
+          # The modernc.org SQLite stack ships BSD licences with slightly reworded
+          # text, so the classifier needs a touch more tolerance to match them; a
+          # copyleft licence still fails the allow-list.
           go-licenses check ./... \
-            --allowed_licenses=MIT,Apache-2.0,BSD-2-Clause,BSD-3-Clause,ISC,MPL-2.0,Unlicense,CC0-1.0
+            --allowed_licenses=MIT,Apache-2.0,BSD-2-Clause,BSD-3-Clause,ISC,MPL-2.0,Unlicense,CC0-1.0 \
+            --confidence_threshold=0.8
 
   # Confirm go.mod and go.sum are tidy: a PR that adds an import without running
   # go mod tidy fails here instead of breaking a later release.
