@@ -6,6 +6,16 @@ weight: 40
 
 The authoritative, commit-level history lives in [`CHANGELOG.md`](https://github.com/tamnd/yomi/blob/main/CHANGELOG.md) and on the [releases page](https://github.com/tamnd/yomi/releases). This page summarises each version.
 
+## Unreleased
+
+A round on input and output: more ways to feed yomi a page, and more shapes to get one back.
+
+- **An EPUB book.** `yomi pack --format epub` (or a `.epub` output name) builds an EPUB 3 book from a crawl, readable on any e-reader. Each page becomes a well-formed XHTML chapter, in-scope links are rewired to sibling chapters so the book reads offline, a generated navigation document lists every page, and a drawn-in-code cover stands in front. `--icon` supplies your own cover, and `--title`, `--language`, and `--date` fill the book's metadata. The crawl keeps its SQLite store as a sidecar for the next incremental run, the same as a ZIM build.
+- **More ways in.** `yomi read -` reads HTML from standard input and `yomi read page.html` reads a local file, so you can convert a page you already have without a fetch. `--base` sets the URL that relative links resolve against.
+- **More shapes out.** `yomi read -f json|jsonl` emits the full page record instead of a Markdown document, and `-f html` emits a self-contained HTML article. `yomi site --format json|jsonl` writes one dataset file of every crawled page, for feeding a pipeline.
+- **Reach more pages.** `yomi site --sitemap` (and `pack --sitemap`) seeds the crawl from the site's `sitemap.xml` and any `robots.txt` `Sitemap:` lines, following an index one level, so the crawl reaches pages that are listed but not linked.
+- **Resume a site crawl.** `yomi site --resume` continues an interrupted Markdown crawl. The crawl records each page in a `.yomi-state.jsonl` sidecar as it goes, so a re-run skips the pages already done, the way `pack` resumes from its store.
+
 ## v0.2.1
 
 A pass to make a packed ZIM open nicely in Kiwix.

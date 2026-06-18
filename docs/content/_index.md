@@ -25,7 +25,7 @@ yomi site paulgraham.com -o pg/
 - **Writes clean Markdown.** What survives extraction is converted to GitHub-Flavored Markdown, with a YAML front-matter block carrying the title, byline, dates, language, and word count.
 - **Reads a whole site.** `yomi site` crawls in scope and writes a folder of `.md` files mirroring the URL paths, with a `SUMMARY.md` table of contents and a shared `media/` folder.
 - **Collapses a site into one file.** `--single` assembles every page into one Markdown document with a table of contents, per-page sections, and in-file anchors.
-- **Packs a site into one file.** `yomi pack` bundles a whole crawl into a single SQLite database you can query or a single ZIM archive you can read offline in Kiwix, with a resumable, incremental crawl.
+- **Packs a site into one file.** `yomi pack` bundles a whole crawl into a single SQLite database you can query, a single ZIM archive you can read offline in Kiwix, or a single EPUB book for an e-reader, with a resumable, incremental crawl.
 
 yomi is a sibling to [kage](https://github.com/tamnd/kage). kage mirrors a site as a browsable offline HTML copy and keeps its shape; yomi keeps the reading as Markdown. They share the same headless-browser engine, scope model, and robots handling. yomi is the one that both renders JavaScript and emits Markdown, and the only one that can collapse a whole site into a single file.
 

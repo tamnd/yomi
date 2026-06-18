@@ -5,6 +5,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+A round on input and output: more ways to feed yomi a page, and more shapes to get one back.
+
+### Added
+
+- `yomi pack --format epub` (or a `.epub` output name) builds an EPUB 3 book from a crawl, readable on any e-reader. Each page becomes a well-formed XHTML chapter, in-scope links are rewired to sibling chapters so the book reads offline, a generated navigation document lists every page, and a drawn-in-code cover stands in front. `--icon <png>` supplies your own cover, and the existing `--title`, `--language`, and `--date` flags fill the book's metadata. The crawl keeps its SQLite store as a sidecar for the next incremental run, exactly as the ZIM format does.
+- `yomi read` now takes more than a URL. `yomi read -` reads HTML from standard input, and `yomi read page.html` reads a local file, so you can convert a page you already have without a fetch. `--base <url>` sets the URL that relative links resolve against.
+- Structured output for `yomi read`: `-f json` and `-f jsonl` emit the full page record (metadata, links, images, and the Markdown body) instead of a Markdown document, and `-f html` emits a self-contained HTML article. The default stays Markdown.
+- Structured output for `yomi site`: `--format json` and `--format jsonl` write one dataset file of every crawled page rather than a folder of Markdown, for feeding a pipeline.
+- `yomi site --sitemap` seeds the crawl from the site's `sitemap.xml` (and any `Sitemap:` lines in `robots.txt`), following a sitemap index one level, so a crawl reaches pages that are listed but not linked. `pack` honours the same option.
+- `yomi site --resume` continues an interrupted Markdown crawl. The crawl writes each page as it is read and records it in a `.yomi-state.jsonl` sidecar, so a re-run with `--resume` skips the pages already done, mirroring how `pack` resumes from its store.
+
 ## [0.2.1] - 2026-06-18
 
 A pass to make a packed ZIM open nicely in Kiwix.
