@@ -25,6 +25,7 @@ type Config struct {
 	MaxDepth  int
 	Workers   int
 	Robots    bool
+	Sitemap   bool // seed the frontier from the site's sitemap before walking links
 	UserAgent string
 	Timeout   time.Duration
 	Logf      func(format string, args ...any)
@@ -63,6 +64,9 @@ func Crawl(ctx context.Context, cfg Config, visit Visit) error {
 	}
 
 	c.enqueue(ctx, cfg.Seed, 0)
+	if cfg.Sitemap {
+		c.loadSitemap(ctx)
+	}
 
 	go func() {
 		c.wg.Wait()
@@ -85,6 +89,7 @@ type crawler struct {
 	mu       sync.Mutex
 	visited  map[string]bool
 	enqueued int
+	sitemaps []string // Sitemap: URLs declared in robots.txt
 
 	wg   sync.WaitGroup
 	jobs chan job
@@ -166,6 +171,7 @@ func (c *crawler) loadRobots(ctx context.Context) {
 		return
 	}
 	c.matcher = robots.Parse(string(data), "yomi")
+	c.sitemaps = sitemapLines(string(data))
 }
 
 func max1(n int) int {
