@@ -34,6 +34,21 @@ const (
 	ImageInline ImagePolicy = "inline"
 )
 
+// SiteFormat is the output shape of a whole-site read. Markdown writes the
+// folder or single file; the two data formats write one structured file of every
+// page, the columnar batch output a script pipes into jq or a dataframe.
+type SiteFormat string
+
+const (
+	// SiteMarkdown writes a folder of .md, or one combined .md with --single
+	// (default).
+	SiteMarkdown SiteFormat = "md"
+	// SiteJSON writes one JSON document: an array of every page's record.
+	SiteJSON SiteFormat = "json"
+	// SiteJSONL writes one page record per line.
+	SiteJSONL SiteFormat = "jsonl"
+)
+
 // LinkStyle decides how Markdown links are rendered.
 type LinkStyle string
 
@@ -69,6 +84,7 @@ type Options struct {
 	// yomi crawl and a kage clone scope a site identically.
 	Out      string           // output directory (site) or file (read)
 	Single   bool             // assemble one Markdown file instead of a folder
+	Format   SiteFormat       // site output shape: md (default), json, jsonl
 	Scope    urlx.ScopeConfig // include-subdomains, scope-prefix, exclude-paths
 	MaxPages int              // hard cap on pages crawled; 0 means unbounded
 	MaxDepth int              // link depth from the seed; 0 means unbounded
@@ -87,6 +103,7 @@ func Defaults() Options {
 		Render:        RenderAuto,
 		Images:        ImageRemote,
 		Links:         LinkInline,
+		Format:        SiteMarkdown,
 		FrontMatter:   true,
 		Wrap:          0,
 		UserAgent:     DefaultUserAgent,

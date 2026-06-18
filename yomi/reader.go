@@ -61,13 +61,30 @@ func (r *reader) read(ctx context.Context, rawURL string, rw rewrite) (*Page, er
 	if err != nil {
 		return nil, err
 	}
-	art, err := extract.FromHTML(resp.Body, resp.URL)
+	p, err := r.readHTML(ctx, resp.Body, resp.URL, rw)
+	if err != nil {
+		return nil, err
+	}
+	p.Rendered = resp.Rendered
+	if rawURL != resp.URL {
+		p.RequestURL = rawURL
+	}
+	return p, nil
+}
+
+// readHTML is the post-fetch half of a read: it extracts the article from an
+// already-obtained HTML body, builds the Page, converts the body to Markdown,
+// and collects its links. baseURL is the absolute URL the body came from, used
+// to resolve relative links and images. It is the path the live-fetch read, the
+// stdin read, and the local-file read all share.
+func (r *reader) readHTML(ctx context.Context, body []byte, baseURL string, rw rewrite) (*Page, error) {
+	art, err := extract.FromHTML(body, baseURL)
 	if err != nil {
 		return nil, err
 	}
 
 	p := &Page{
-		URL:       resp.URL,
+		URL:       baseURL,
 		Title:     art.Title,
 		Byline:    art.Byline,
 		SiteName:  art.SiteName,
@@ -75,13 +92,9 @@ func (r *reader) read(ctx context.Context, rawURL string, rw rewrite) (*Page, er
 		Lang:      art.Lang,
 		Published: art.Published,
 		Fetched:   r.opts.Fetched,
-		Rendered:  resp.Rendered,
-	}
-	if rawURL != resp.URL {
-		p.RequestURL = rawURL
 	}
 
-	base, _ := url.Parse(resp.URL)
+	base, _ := url.Parse(baseURL)
 	imgSink := r.imageSink(ctx, base, rw, p)
 
 	if art.Node != nil {
