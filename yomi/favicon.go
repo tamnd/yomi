@@ -47,6 +47,70 @@ func defaultIllustration() []byte {
 	return buf.Bytes()
 }
 
+// coverPNG draws an EPUB cover: a portrait canvas filled in the reading-motif
+// indigo with the folded-page mark centred in the upper half, the same drawn-in-
+// code choice the ZIM library icon makes so the binary carries no image asset.
+// The mark reuses the 48-unit page geometry, scaled onto the cover and sampled
+// at 3x for smooth edges. It returns nil only if PNG encoding fails.
+func coverPNG(w, h int) []byte {
+	const (
+		bgR, bgG, bgB = 37, 99, 235 // #2563eb
+		supersample   = 3
+	)
+	img := image.NewNRGBA(image.Rect(0, 0, w, h))
+
+	// The motif box: a square in the upper-middle of the cover that maps onto the
+	// 48-unit icon space the page geometry is drawn in.
+	motif := float64(w) * 0.62
+	originX := (float64(w) - motif) / 2
+	originY := float64(h) * 0.20
+
+	for py := 0; py < h; py++ {
+		for px := 0; px < w; px++ {
+			var r, g, b float64
+			for sj := 0; sj < supersample; sj++ {
+				for si := 0; si < supersample; si++ {
+					fx := float64(px) + (float64(si)+0.5)/supersample
+					fy := float64(py) + (float64(sj)+0.5)/supersample
+					ix := (fx - originX) / motif * 48
+					iy := (fy - originY) / motif * 48
+					cr, cg, cb := coverSample(ix, iy, bgR, bgG, bgB)
+					r, g, b = r+cr, g+cg, b+cb
+				}
+			}
+			n := float64(supersample * supersample)
+			img.SetNRGBA(px, py, color.NRGBA{
+				R: uint8(r/n + 0.5),
+				G: uint8(g/n + 0.5),
+				B: uint8(b/n + 0.5),
+				A: 255,
+			})
+		}
+	}
+
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, img); err != nil {
+		return nil
+	}
+	return buf.Bytes()
+}
+
+// coverSample returns the colour of the page motif at a point in 48-unit icon
+// space, falling back to the supplied background colour off the page.
+func coverSample(x, y float64, bgR, bgG, bgB int) (r, g, b float64) {
+	if inPage(x, y) {
+		switch {
+		case onFold(x, y):
+			return 203, 213, 225 // #cbd5e1, the turned corner
+		case onTextLine(x, y):
+			return 148, 163, 184 // #94a3b8, lines of text
+		default:
+			return 255, 255, 255 // the page
+		}
+	}
+	return float64(bgR), float64(bgG), float64(bgB)
+}
+
 // iconColorAt returns the colour, as 0-255 channels, at a point in the 48-unit
 // icon space. Points outside the rounded background are transparent.
 func iconColorAt(x, y float64) (r, g, b, a float64) {
