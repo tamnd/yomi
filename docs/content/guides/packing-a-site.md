@@ -96,8 +96,10 @@ entry raw, which makes a larger file that opens without decompression.
 An EPUB is the format to reach for when you want to read the site as a book, on a
 Kobo, a Kindle (after a convert), Apple Books, or any reading app. pack renders
 each page to a well-formed XHTML chapter, rewires the in-scope links to point at
-the sibling chapters so the book reads offline, generates a navigation table of
-contents, and puts a cover in front.
+the sibling chapters, pulls every referenced image into the book so it reads with
+no network, generates a navigation table of contents, and puts a cover in front.
+The result passes EPUBCheck, the official validator, with no errors or warnings,
+so it opens cleanly in any reader and is accepted by any store.
 
 ```bash
 yomi pack paulgraham.com -o pg.epub \
@@ -109,8 +111,10 @@ yomi pack paulgraham.com -o pg.epub \
 The book carries the Dublin Core metadata a reader shows: the title, the language
 (the ISO 639-3 code is mapped to the BCP 47 tag EPUB expects, so `eng` becomes
 `en`), the site as the creator, the seed URL as the source, and the date. yomi
-draws a built-in cover by default; pass `--icon` with a PNG to use your own. Like
-a ZIM build, an EPUB build keeps its SQLite store as a sidecar (`pg.db` for
+draws a built-in cover by default; pass `--icon` with a PNG to use your own. An
+image that cannot be fetched is replaced by its alt text rather than left as a
+broken link, and the package carries the accessibility metadata a reader expects.
+Like a ZIM build, an EPUB build keeps its SQLite store as a sidecar (`pg.db` for
 `pg.epub`) so the next run is incremental.
 
 The chapters read in crawl order, shallowest pages first, the same order the
