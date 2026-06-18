@@ -8,17 +8,21 @@ import (
 
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/extension"
+	"github.com/yuin/goldmark/parser"
 	gmhtml "github.com/yuin/goldmark/renderer/html"
 	xhtml "golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
 )
 
 // markdown is the shared GitHub-Flavored Markdown renderer used to turn a
-// stored page back into HTML for a ZIM. Unsafe is on so the inline HTML yomi
-// already emits (data-URI images, the odd raw tag) survives the round trip; the
-// input is content yomi extracted itself and the output is read offline.
+// stored page back into HTML for a ZIM or EPUB. Unsafe is on so the inline HTML
+// yomi already emits (data-URI images, the odd raw tag) survives the round trip;
+// the input is content yomi extracted itself and the output is read offline.
+// Auto heading IDs give every heading a stable anchor, so a same-page link to a
+// section resolves in the packed book instead of dangling.
 var markdown = goldmark.New(
 	goldmark.WithExtensions(extension.GFM),
+	goldmark.WithParserOptions(parser.WithAutoHeadingID()),
 	goldmark.WithRendererOptions(gmhtml.WithUnsafe()),
 )
 
