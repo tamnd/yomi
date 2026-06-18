@@ -39,7 +39,10 @@ func buildTestEPUB(t *testing.T) (*zip.Reader, string) {
 
 	home := samplePage("https://ex.com/", "Home", "Welcome to [the about page](https://ex.com/about).")
 	home.Path = "index.md"
-	about := samplePage("https://ex.com/about", "About Us", "An about page with a <br> break and an image ![pic](https://ex.com/p.png).")
+	// A data: URI image is embedded without any network access, and a link to a
+	// fragment that no element defines is a dangling reference the build must defuse.
+	about := samplePage("https://ex.com/about", "About Us",
+		"An about page with a <br> break, a [missing note](#nope), and an image ![pic]("+onePixelPNG+").")
 	about.Path = "about.md"
 	if err := st.put(ctx, home, 0, "2026-06-17T00:00:00Z"); err != nil {
 		t.Fatal(err)
@@ -50,7 +53,7 @@ func buildTestEPUB(t *testing.T) (*zip.Reader, string) {
 
 	out := filepath.Join(t.TempDir(), "book.epub")
 	popts := PackOptions{Format: PackEPUB, Out: out, Date: "2026-06-17", Language: "eng", Version: "test"}
-	n, err := buildEPUB(st, popts, "ex.com", out)
+	n, err := buildEPUB(ctx, st, popts, "ex.com", out)
 	if err != nil {
 		t.Fatalf("buildEPUB: %v", err)
 	}
@@ -189,4 +192,77 @@ func valuesOf(m map[string]string) []string {
 		out = append(out, v)
 	}
 	return out
+}
+
+// onePixelPNG is a 1x1 transparent PNG as a data: URI, embedded by the EPUB build
+// without touching the network.
+const onePixelPNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+
+func TestEPUBEmbedsImageAndDropsRemoteSrc(t *testing.T) {
+	zr, _ := buildTestEPUB(t)
+	// The data: URI image is pulled into the container and the chapter points at the
+	// local copy, so the book carries no remote image reference.
+	readZipEntry(t, zr, "OEBPS/images/img1.png")
+	about := string(readZipEntry(t, zr, "OEBPS/text/about.xhtml"))
+	if !strings.Contains(about, `src="../images/img1.png"`) {
+		t.Errorf("image not repointed at the embedded copy:\n%s", about)
+	}
+	if strings.Contains(about, `src="data:`) || strings.Contains(about, `src="http`) {
+		t.Errorf("chapter still carries a non-local image reference:\n%s", about)
+	}
+	// The image is also declared in the manifest.
+	opf := string(readZipEntry(t, zr, "OEBPS/content.opf"))
+	if !strings.Contains(opf, `href="images/img1.png"`) || !strings.Contains(opf, `media-type="image/png"`) {
+		t.Errorf("embedded image missing from manifest:\n%s", opf)
+	}
+}
+
+func TestEPUBDefusesDanglingFragment(t *testing.T) {
+	zr, _ := buildTestEPUB(t)
+	about := string(readZipEntry(t, zr, "OEBPS/text/about.xhtml"))
+	// The link text survives, but the broken #fragment href is gone.
+	if strings.Contains(about, `href="#nope"`) {
+		t.Errorf("dangling fragment link not defused:\n%s", about)
+	}
+	if !strings.Contains(about, "missing note") {
+		t.Errorf("link text was lost along with the broken href:\n%s", about)
+	}
+}
+
+func TestEPUBHasAccessibilityMetadata(t *testing.T) {
+	zr, _ := buildTestEPUB(t)
+	opf := string(readZipEntry(t, zr, "OEBPS/content.opf"))
+	for _, want := range []string{
+		`property="schema:accessMode">textual`,
+		`property="schema:accessModeSufficient">textual`,
+		`property="schema:accessibilityFeature">tableOfContents`,
+		`property="schema:accessibilityHazard">none`,
+	} {
+		if !strings.Contains(opf, want) {
+			t.Errorf("package missing accessibility metadata %q", want)
+		}
+	}
+}
+
+func TestClassifyImage(t *testing.T) {
+	cases := []struct {
+		ct, src   string
+		data      []byte
+		wantMedia string
+		wantExt   string
+		wantOK    bool
+	}{
+		{"image/png", "", []byte("\x89PNG\r\n"), "image/png", ".png", true},
+		{"image/jpeg; charset=binary", "", nil, "image/jpeg", ".jpg", true},
+		{"", "logo.svg", []byte("<svg xmlns=\"\">"), "image/svg+xml", ".svg", true},
+		{"text/html", "page", []byte("<!doctype html>"), "", "", false},
+		{"application/octet-stream", "x", []byte("GIF89a....."), "image/gif", ".gif", true},
+	}
+	for _, c := range cases {
+		gotMedia, gotExt, gotOK := classifyImage(c.ct, c.data, c.src)
+		if gotMedia != c.wantMedia || gotExt != c.wantExt || gotOK != c.wantOK {
+			t.Errorf("classifyImage(%q,%q) = (%q,%q,%v), want (%q,%q,%v)",
+				c.ct, c.src, gotMedia, gotExt, gotOK, c.wantMedia, c.wantExt, c.wantOK)
+		}
+	}
 }

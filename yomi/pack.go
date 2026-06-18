@@ -176,11 +176,15 @@ func Pack(ctx context.Context, seedArg string, popts PackOptions) (*PackResult, 
 
 	switch popts.Format {
 	case PackZIM, PackEPUB:
-		build := buildZIM
+		var (
+			n    int64
+			berr error
+		)
 		if popts.Format == PackEPUB {
-			build = buildEPUB
+			n, berr = buildEPUB(ctx, st, popts, host, popts.Out)
+		} else {
+			n, berr = buildZIM(st, popts, host, popts.Out)
 		}
-		n, berr := build(st, popts, host, popts.Out)
 		if berr != nil {
 			if crawlErr != nil {
 				return res, crawlErr

@@ -3,22 +3,29 @@ package yomi
 import (
 	"archive/zip"
 	"bytes"
+	"context"
 	"fmt"
 	"html"
 	"os"
 	"strings"
+
+	xhtml "golang.org/x/net/html"
+	"golang.org/x/net/html/atom"
 )
 
 // buildEPUB compiles the pages already in the store into an EPUB 3 book at
 // outPath. Each page becomes a well-formed XHTML chapter under OEBPS/text, a
 // generated navigation document lists them in crawl order, internal links are
-// rewired to point at sibling chapters so the book reads offline, and a drawn-in-
-// code cover stands in front. It returns the number of bytes written.
+// rewired to point at sibling chapters, every referenced image is pulled into the
+// container so the book reads with no network, and a drawn-in-code cover stands
+// in front. It returns the number of bytes written.
 //
 // The chapter bodies come from the same Markdown-to-HTML renderer the ZIM build
 // uses, then pass through an XHTML serialiser, because an EPUB content document
-// must be XML the reader can parse, not the looser HTML5 the renderer emits.
-func buildEPUB(st *store, popts PackOptions, host, outPath string) (int64, error) {
+// must be XML the reader can parse, not the looser HTML5 the renderer emits. The
+// result validates against EPUBCheck: no remote resources and no dangling
+// internal links.
+func buildEPUB(ctx context.Context, st *store, popts PackOptions, host, outPath string) (int64, error) {
 	pages, err := st.allPages()
 	if err != nil {
 		return 0, err
@@ -43,6 +50,31 @@ func buildEPUB(st *store, popts PackOptions, host, outPath string) (int64, error
 		names[i] = n
 		canon2epub[canonURL(p.URL)] = n
 	}
+
+	// Render every chapter to a parsed DOM up front and collect the images they
+	// reference, so the images can be fetched once and shared, and so each chapter
+	// can be transformed against the final image map in a second pass.
+	docs := make([][]*xhtml.Node, len(pages))
+	raw := make([]string, len(pages))
+	var imgSrcs []string
+	imgSeen := map[string]bool{}
+	for i, p := range pages {
+		body, rerr := renderMarkdown(p.Markdown)
+		if rerr != nil {
+			return 0, fmt.Errorf("render %s: %w", p.URL, rerr)
+		}
+		nodes, perr := parseBodyFragment(body)
+		if perr != nil {
+			raw[i] = body
+			continue
+		}
+		docs[i] = nodes
+		for _, n := range nodes {
+			collectImageSrcs(n, &imgSrcs, imgSeen)
+		}
+	}
+
+	images := fetchImages(ctx, imgSrcs, popts.Options, popts.log)
 
 	var buf bytes.Buffer
 	zw := zip.NewWriter(&buf)
@@ -84,18 +116,20 @@ func buildEPUB(st *store, popts PackOptions, host, outPath string) (int64, error
 		return 0, err
 	}
 
-	for i, p := range pages {
-		body, rerr := renderMarkdown(p.Markdown)
-		if rerr != nil {
-			return 0, fmt.Errorf("render %s: %w", p.URL, rerr)
+	for _, a := range images.assets {
+		if err := add("OEBPS/"+a.name, a.data); err != nil {
+			return 0, err
 		}
-		body = rewriteLinks(body, func(href string) (string, bool) {
-			if t, ok := canon2epub[canonURL(href)]; ok {
-				return t, true
-			}
-			return "", false
-		})
-		doc := epubChapterXHTML(p, toXHTML(body), lang)
+	}
+
+	for i, p := range pages {
+		var body string
+		if docs[i] != nil {
+			body = epubChapterBody(docs[i], canon2epub, images.bySrc)
+		} else {
+			body = toXHTML(raw[i])
+		}
+		doc := epubChapterXHTML(p, body, lang)
 		if err := add("OEBPS/text/"+names[i], []byte(doc)); err != nil {
 			return 0, err
 		}
@@ -104,7 +138,8 @@ func buildEPUB(st *store, popts PackOptions, host, outPath string) (int64, error
 	if err := add("OEBPS/nav.xhtml", []byte(epubNavXHTML(title, lang, pages, names))); err != nil {
 		return 0, err
 	}
-	if err := add("OEBPS/content.opf", []byte(epubPackageOPF(title, host, seed, lang, popts.Date, pages, names))); err != nil {
+	opf := epubPackageOPF(title, host, seed, lang, popts.Date, pages, names, images.assets)
+	if err := add("OEBPS/content.opf", []byte(opf)); err != nil {
 		return 0, err
 	}
 
@@ -115,6 +150,152 @@ func buildEPUB(st *store, popts PackOptions, host, outPath string) (int64, error
 		return 0, err
 	}
 	return int64(buf.Len()), nil
+}
+
+// parseBodyFragment parses an HTML fragment as the children of a <body>, the same
+// context the renderer's output belongs in.
+func parseBodyFragment(fragment string) ([]*xhtml.Node, error) {
+	ctx := &xhtml.Node{Type: xhtml.ElementNode, Data: "body", DataAtom: atom.Body}
+	return xhtml.ParseFragment(strings.NewReader(fragment), ctx)
+}
+
+// collectImageSrcs walks a node tree and records every <img src> it has not seen
+// before, preserving first-seen order so image naming is deterministic.
+func collectImageSrcs(n *xhtml.Node, order *[]string, seen map[string]bool) {
+	if n.Type == xhtml.ElementNode && n.DataAtom == atom.Img {
+		if src := nodeAttr(n, "src"); src != "" && !seen[src] {
+			seen[src] = true
+			*order = append(*order, src)
+		}
+	}
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		collectImageSrcs(c, order, seen)
+	}
+}
+
+// epubChapterBody transforms a chapter's parsed DOM into a well-formed XHTML
+// string: internal page links are pointed at sibling chapters, an image is
+// repointed at its embedded copy (or, when it could not be embedded, replaced by
+// its alt text or removed), and an internal fragment link whose target does not
+// exist in the chapter is defused so the book carries no broken references.
+func epubChapterBody(nodes []*xhtml.Node, canon2epub map[string]string, images map[string]embeddedImage) string {
+	ids := map[string]bool{}
+	for _, n := range nodes {
+		collectFragmentIDs(n, ids)
+	}
+	var drop []*xhtml.Node
+	for _, n := range nodes {
+		transformEPUBNode(n, canon2epub, images, ids, &drop)
+	}
+	for _, n := range drop {
+		if n.Parent != nil {
+			n.Parent.RemoveChild(n)
+		}
+	}
+	var b strings.Builder
+	for _, n := range nodes {
+		writeXHTML(&b, n)
+	}
+	return b.String()
+}
+
+// collectFragmentIDs records every id and name a node tree defines, the set of
+// targets an in-document #fragment link can legally point at.
+func collectFragmentIDs(n *xhtml.Node, ids map[string]bool) {
+	if n.Type == xhtml.ElementNode {
+		if v := nodeAttr(n, "id"); v != "" {
+			ids[v] = true
+		}
+		if v := nodeAttr(n, "name"); v != "" {
+			ids[v] = true
+		}
+	}
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		collectFragmentIDs(c, ids)
+	}
+}
+
+// transformEPUBNode rewrites one node and its descendants for the EPUB: links to
+// in-book pages, images to embedded copies, and dangling in-document fragments to
+// plain text.
+func transformEPUBNode(n *xhtml.Node, canon2epub map[string]string, images map[string]embeddedImage, ids map[string]bool, drop *[]*xhtml.Node) {
+	if n.Type == xhtml.ElementNode {
+		switch n.DataAtom {
+		case atom.A:
+			rewriteAnchor(n, canon2epub, ids)
+		case atom.Img:
+			rewriteImage(n, images, drop)
+		}
+	}
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		transformEPUBNode(c, canon2epub, images, ids, drop)
+	}
+}
+
+// rewriteAnchor points an <a> at a sibling chapter when its href names an in-book
+// page, and strips the href of an in-document #fragment link whose target is
+// absent, which leaves the text in place but removes the reference EPUBCheck would
+// flag as broken. A real in-page anchor and an external link are both left alone.
+func rewriteAnchor(n *xhtml.Node, canon2epub map[string]string, ids map[string]bool) {
+	for i := range n.Attr {
+		if n.Attr[i].Key != "href" {
+			continue
+		}
+		v := n.Attr[i].Val
+		if t, ok := canon2epub[canonURL(v)]; ok {
+			n.Attr[i].Val = t
+			return
+		}
+		if strings.HasPrefix(v, "#") && !ids[strings.TrimPrefix(v, "#")] {
+			n.Attr = removeAttrAt(n.Attr, i)
+		}
+		return
+	}
+}
+
+// rewriteImage repoints an <img> at its embedded copy. An image that could not be
+// embedded would be a remote reference the format forbids, so it is replaced by
+// its alt text when it has any, and otherwise removed.
+func rewriteImage(n *xhtml.Node, images map[string]embeddedImage, drop *[]*xhtml.Node) {
+	src := nodeAttr(n, "src")
+	if emb, ok := images[src]; ok {
+		setNodeAttr(n, "src", "../"+emb.name)
+		return
+	}
+	if alt := strings.TrimSpace(nodeAttr(n, "alt")); alt != "" {
+		n.Type = xhtml.TextNode
+		n.DataAtom = 0
+		n.Data = alt
+		n.Attr = nil
+		return
+	}
+	*drop = append(*drop, n)
+}
+
+// nodeAttr returns the value of a node's attribute, or "" when it is absent.
+func nodeAttr(n *xhtml.Node, key string) string {
+	for _, a := range n.Attr {
+		if a.Key == key {
+			return a.Val
+		}
+	}
+	return ""
+}
+
+// setNodeAttr sets (or adds) a node attribute.
+func setNodeAttr(n *xhtml.Node, key, val string) {
+	for i := range n.Attr {
+		if n.Attr[i].Key == key {
+			n.Attr[i].Val = val
+			return
+		}
+	}
+	n.Attr = append(n.Attr, xhtml.Attribute{Key: key, Val: val})
+}
+
+// removeAttrAt returns the attribute slice with index i removed.
+func removeAttrAt(attrs []xhtml.Attribute, i int) []xhtml.Attribute {
+	return append(attrs[:i], attrs[i+1:]...)
 }
 
 // xhtmlName maps a page's .md path to its EPUB chapter filename: the path with
@@ -253,7 +434,7 @@ func epubCoverXHTML(lang string) string {
 
 // epubPackageOPF builds the package document: the Dublin Core metadata, the
 // manifest of every file in the book, and the spine that orders them for reading.
-func epubPackageOPF(title, host, seed, lang, date string, pages []*Page, names []string) string {
+func epubPackageOPF(title, host, seed, lang, date string, pages []*Page, names []string, images []epubImageAsset) string {
 	id := seed
 	if id == "" {
 		id = "urn:yomi:" + host
@@ -276,6 +457,22 @@ func epubPackageOPF(title, host, seed, lang, date string, pages []*Page, names [
 		fmt.Fprintf(&b, "<dc:date>%s</dc:date>\n", html.EscapeString(date))
 	}
 	fmt.Fprintf(&b, "<meta property=\"dcterms:modified\">%s</meta>\n", modified)
+
+	// Accessibility metadata, the discovery fields an EPUB is expected to carry: the
+	// content is reflowable text a reader can navigate by its table of contents, and
+	// the text alone conveys the work.
+	b.WriteString("<meta property=\"schema:accessMode\">textual</meta>\n")
+	if len(images) > 0 {
+		b.WriteString("<meta property=\"schema:accessMode\">visual</meta>\n")
+	}
+	b.WriteString("<meta property=\"schema:accessModeSufficient\">textual</meta>\n")
+	b.WriteString("<meta property=\"schema:accessibilityFeature\">tableOfContents</meta>\n")
+	b.WriteString("<meta property=\"schema:accessibilityFeature\">structuralNavigation</meta>\n")
+	b.WriteString("<meta property=\"schema:accessibilityFeature\">readingOrder</meta>\n")
+	b.WriteString("<meta property=\"schema:accessibilityHazard\">none</meta>\n")
+	fmt.Fprintf(&b, "<meta property=\"schema:accessibilitySummary\">Reflowable text with a navigable table of contents, packed from %s by yomi.</meta>\n",
+		html.EscapeString(host))
+
 	b.WriteString("<meta name=\"cover\" content=\"cover-image\"/>\n")
 	b.WriteString("</metadata>\n")
 
@@ -287,6 +484,10 @@ func epubPackageOPF(title, host, seed, lang, date string, pages []*Page, names [
 	for i, n := range names {
 		fmt.Fprintf(&b, "<item id=\"p%d\" href=%q media-type=\"application/xhtml+xml\"/>\n",
 			i, "text/"+n)
+	}
+	for _, a := range images {
+		fmt.Fprintf(&b, "<item id=%q href=%q media-type=%q/>\n",
+			a.id, html.EscapeString(a.name), html.EscapeString(a.mediaType))
 	}
 	b.WriteString("</manifest>\n")
 
