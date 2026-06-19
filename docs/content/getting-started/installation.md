@@ -12,17 +12,38 @@ yomi is a single binary. Pick whichever channel suits you.
 go install github.com/tamnd/yomi/cmd/yomi@latest
 ```
 
-## Homebrew
+## Homebrew (macOS)
 
 ```bash
 brew install tamnd/tap/yomi
 ```
 
-## Scoop
+The cask installs the prebuilt macOS binary. On Linux, use the packages below or
+`go install`.
+
+## Scoop (Windows)
 
 ```bash
 scoop bucket add tamnd https://github.com/tamnd/scoop-bucket
 scoop install yomi
+```
+
+## Linux (apt and dnf)
+
+A signed apt and dnf repository tracks every release, so `apt upgrade` and
+`dnf upgrade` keep yomi current.
+
+```bash
+# Debian, Ubuntu
+curl -fsSL https://tamnd.github.io/linux-repo/gpg.key \
+  | sudo gpg --dearmor -o /usr/share/keyrings/tamnd.gpg
+echo "deb [signed-by=/usr/share/keyrings/tamnd.gpg] https://tamnd.github.io/linux-repo/apt stable main" \
+  | sudo tee /etc/apt/sources.list.d/tamnd.list
+sudo apt update && sudo apt install yomi
+
+# Fedora, RHEL
+sudo dnf config-manager --add-repo https://tamnd.github.io/linux-repo/dnf/tamnd.repo
+sudo dnf install yomi
 ```
 
 ## Release archives and Linux packages
@@ -30,14 +51,15 @@ scoop install yomi
 Every [release](https://github.com/tamnd/yomi/releases) attaches `tar.gz`
 archives (and a `.zip` for Windows) for Linux, macOS, Windows, and FreeBSD, plus
 `.deb`, `.rpm`, and `.apk` packages. Download the one for your platform, extract
-`yomi`, and put it on your `PATH`.
+`yomi`, and put it on your `PATH`. To install a package directly without the repo
+above:
 
 ```bash
 # Debian/Ubuntu
-sudo dpkg -i yomi_*_linux_amd64.deb
+sudo dpkg -i yomi_*_amd64.deb
 
 # Fedora/RHEL
-sudo rpm -i yomi_*_linux_amd64.rpm
+sudo rpm -i yomi-*.x86_64.rpm
 ```
 
 ## Container
