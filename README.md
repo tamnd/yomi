@@ -24,7 +24,7 @@ Full docs and guides live at **[yomi.tamnd.com](https://yomi.tamnd.com)**.
 go install github.com/tamnd/yomi/cmd/yomi@latest
 ```
 
-Prefer a prebuilt binary? Grab an archive, a `.deb`/`.rpm`/`.apk`, or a checksum from [releases](https://github.com/tamnd/yomi/releases). On a Mac or Windows box, the package managers know it:
+Prefer a prebuilt binary? Grab an archive, a `.deb`/`.rpm`/`.apk`, or a checksum from [releases](https://github.com/tamnd/yomi/releases). Or let a package manager handle it:
 
 ```bash
 # Homebrew (macOS)
@@ -33,6 +33,15 @@ brew install tamnd/tap/yomi
 # Scoop (Windows)
 scoop bucket add tamnd https://github.com/tamnd/scoop-bucket
 scoop install yomi
+
+# apt (Debian, Ubuntu)
+curl -fsSL https://tamnd.github.io/linux-repo/gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/tamnd.gpg
+echo "deb [signed-by=/usr/share/keyrings/tamnd.gpg] https://tamnd.github.io/linux-repo/apt stable main" | sudo tee /etc/apt/sources.list.d/tamnd.list
+sudo apt update && sudo apt install yomi
+
+# dnf (Fedora, RHEL)
+sudo dnf config-manager --add-repo https://tamnd.github.io/linux-repo/dnf/tamnd.repo
+sudo dnf install yomi
 ```
 
 A lot of the web is plain HTML, and for that yomi needs nothing but itself. When a page is JavaScript-built, yomi renders it in headless Chrome, so it needs Chrome or Chromium on the host. It finds a system install on its own; point it somewhere specific with `--chrome` or the `CHROME_BIN` environment variable. Or skip the question entirely and use the container image, which bundles Chromium:

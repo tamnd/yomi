@@ -49,6 +49,8 @@ jobs:
       contents: write # create the GitHub release
       packages: write # push the image to ghcr.io
       id-token: write # keyless cosign signing
+    env:
+      LINUX_REPO_DISPATCH_TOKEN: ${{ secrets.LINUX_REPO_DISPATCH_TOKEN }}
     steps:
       - uses: actions/checkout@v7.0.0
         with:
@@ -85,3 +87,15 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
           SCOOP_BUCKET_GITHUB_TOKEN: ${{ secrets.SCOOP_BUCKET_GITHUB_TOKEN }}
+
+      # Rebuild the Linux apt/dnf repository with the packages just released.
+      # Skipped when the dispatch token is unset, so the release never depends
+      # on it being configured.
+      - name: Refresh the Linux package repository
+        if: env.LINUX_REPO_DISPATCH_TOKEN != ''
+        run: |
+          curl -fsS -X POST \
+            -H "Authorization: Bearer $LINUX_REPO_DISPATCH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/tamnd/linux-repo/dispatches \
+            -d '{"event_type":"package-released"}'
