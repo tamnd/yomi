@@ -94,8 +94,13 @@ jobs:
       - name: Refresh the Linux package repository
         if: env.LINUX_REPO_DISPATCH_TOKEN != ''
         run: |
-          curl -fsS -X POST \
+          code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST \
             -H "Authorization: Bearer $LINUX_REPO_DISPATCH_TOKEN" \
             -H "Accept: application/vnd.github+json" \
             https://api.github.com/repos/tamnd/linux-repo/dispatches \
-            -d '{"event_type":"package-released"}'
+            -d '{"event_type":"package-released"}' || true)
+          if [ "$code" = "204" ]; then
+            echo "Linux repo refresh triggered"
+          else
+            echo "Linux repo refresh not accepted (HTTP $code); skipping"
+          fi
