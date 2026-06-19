@@ -27,7 +27,7 @@ go install github.com/tamnd/yomi/cmd/yomi@latest
 Prefer a prebuilt binary? Grab an archive, a `.deb`/`.rpm`/`.apk`, or a checksum from [releases](https://github.com/tamnd/yomi/releases). On a Mac or Windows box, the package managers know it:
 
 ```bash
-# Homebrew
+# Homebrew (macOS)
 brew install tamnd/tap/yomi
 
 # Scoop (Windows)

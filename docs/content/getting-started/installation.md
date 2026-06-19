@@ -12,11 +12,14 @@ yomi is a single binary. Pick whichever channel suits you.
 go install github.com/tamnd/yomi/cmd/yomi@latest
 ```
 
-## Homebrew
+## Homebrew (macOS)
 
 ```bash
 brew install tamnd/tap/yomi
 ```
+
+The cask installs the prebuilt macOS binary. On Linux, use the packages below or
+`go install`.
 
 ## Scoop
 
@@ -34,10 +37,10 @@ archives (and a `.zip` for Windows) for Linux, macOS, Windows, and FreeBSD, plus
 
 ```bash
 # Debian/Ubuntu
-sudo dpkg -i yomi_*_linux_amd64.deb
+sudo dpkg -i yomi_*_amd64.deb
 
 # Fedora/RHEL
-sudo rpm -i yomi_*_linux_amd64.rpm
+sudo rpm -i yomi-*.x86_64.rpm
 ```
 
 ## Container
