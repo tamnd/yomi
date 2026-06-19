@@ -43,12 +43,13 @@ func newPackCmd() *cobra.Command {
 	f := &packFlags{}
 	cmd := &cobra.Command{
 		Use:   "pack <url>",
-		Short: "Crawl a site into a single SQLite database or ZIM archive",
+		Short: "Crawl a site into a single SQLite database, ZIM archive, or EPUB book",
 		Long: "pack crawls a whole site and packages it into one file: a SQLite database\n" +
-			"of pages, links, and images (the default), or a ZIM offline archive you can\n" +
-			"open in Kiwix. The crawl is backed by the database, so it resumes where it\n" +
-			"left off and a later run only fetches what is new. Re-fetch everything with\n" +
-			"--refresh, or just the stale pages with --max-age.",
+			"of pages, links, and images (the default), a ZIM offline archive you can\n" +
+			"open in Kiwix, or an EPUB book you can read on any e-reader. The crawl is\n" +
+			"backed by the database, so it resumes where it left off and a later run only\n" +
+			"fetches what is new. Re-fetch everything with --refresh, or just the stale\n" +
+			"pages with --max-age.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// An explicit --format wins; otherwise a .zim or .db output name
@@ -63,17 +64,17 @@ func newPackCmd() *cobra.Command {
 	}
 	f.register(cmd)
 	fs := cmd.Flags()
-	fs.StringVar(&f.format, "format", "sqlite", "output format: sqlite or zim")
-	fs.StringVarP(&f.out, "out", "o", "", "output file (default: the host with .db or .zim)")
-	fs.StringVar(&f.state, "state", "", "SQLite store path for a zim build (default: the output with .db)")
+	fs.StringVar(&f.format, "format", "sqlite", "output format: sqlite, zim, or epub")
+	fs.StringVarP(&f.out, "out", "o", "", "output file (default: the host with .db, .zim, or .epub)")
+	fs.StringVar(&f.state, "state", "", "SQLite store path for a zim or epub build (default: the output with .db)")
 	fs.BoolVar(&f.refresh, "refresh", false, "re-fetch every page, ignoring what is already stored")
 	fs.DurationVar(&f.maxAge, "max-age", 0, "re-fetch a stored page older than this (e.g. 24h; 0 = never)")
 	fs.BoolVar(&f.noCompress, "no-compress", false, "zim: store every entry raw, with no compression")
-	fs.StringVar(&f.title, "title", "", "zim: archive title (default: the home page title)")
+	fs.StringVar(&f.title, "title", "", "zim, epub: book title (default: the home page title)")
 	fs.StringVar(&f.description, "description", "", "zim: archive description")
-	fs.StringVar(&f.language, "language", "eng", "zim: archive language as an ISO 639-3 code")
-	fs.StringVar(&f.date, "date", time.Now().UTC().Format("2006-01-02"), "zim: archive date (YYYY-MM-DD)")
-	fs.StringVar(&f.icon, "icon", "", "zim: path to a 48x48 PNG used as the Kiwix library icon")
+	fs.StringVar(&f.language, "language", "eng", "zim, epub: language as an ISO 639-3 code")
+	fs.StringVar(&f.date, "date", time.Now().UTC().Format("2006-01-02"), "zim, epub: date (YYYY-MM-DD)")
+	fs.StringVar(&f.icon, "icon", "", "zim, epub: path to a PNG used as the library icon or cover")
 	fs.IntVarP(&f.maxPages, "max-pages", "p", 0, "stop after N pages (0 = unlimited)")
 	fs.IntVarP(&f.maxDepth, "max-depth", "d", 0, "link-follow depth cap (0 = unlimited)")
 	fs.IntVar(&f.workers, "workers", 4, "concurrent page workers")
@@ -155,6 +156,8 @@ func formatFromExt(out string) (string, bool) {
 	switch strings.ToLower(filepath.Ext(out)) {
 	case ".zim":
 		return "zim", true
+	case ".epub":
+		return "epub", true
 	case ".db", ".sqlite", ".sqlite3":
 		return "sqlite", true
 	default:
@@ -165,16 +168,16 @@ func formatFromExt(out string) (string, bool) {
 // packFormat validates the --format value.
 func packFormat(s string) (yomi.PackFormat, error) {
 	switch s {
-	case "sqlite", "zim":
+	case "sqlite", "zim", "epub":
 		return yomi.PackFormat(s), nil
 	default:
-		return "", fmt.Errorf("invalid --format %q: want sqlite or zim", s)
+		return "", fmt.Errorf("invalid --format %q: want sqlite, zim, or epub", s)
 	}
 }
 
 // packPaths resolves the artifact path and the backing store path from the
 // format, the host, and any explicit --out/--state. For sqlite the store is the
-// output; for zim the store is a sidecar database next to the archive.
+// output; for zim and epub the store is a sidecar database next to the artifact.
 func packPaths(format yomi.PackFormat, host, out, state string) (artifact, store string) {
 	if format == yomi.PackSQLite {
 		if out == "" {
@@ -183,7 +186,7 @@ func packPaths(format yomi.PackFormat, host, out, state string) (artifact, store
 		return out, out
 	}
 	if out == "" {
-		out = host + ".zim"
+		out = host + "." + string(format)
 	}
 	if state == "" {
 		state = strings.TrimSuffix(out, filepath.Ext(out)) + ".db"
@@ -199,7 +202,7 @@ func printPackSummary(res *yomi.PackResult) {
 		styleAccent.Render("new"), res.Added,
 		styleAccent.Render("kept"), res.Skipped,
 		styleAccent.Render("words"), res.Words)
-	if res.Format == yomi.PackZIM {
+	if res.Format == yomi.PackZIM || res.Format == yomi.PackEPUB {
 		fmt.Fprintln(os.Stderr, styleDim.Render("  store "+res.StorePath+" kept for the next incremental run"))
 	}
 }

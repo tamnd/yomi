@@ -5,6 +5,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-06-19
+
+A round on input and output: more ways to feed yomi a page, and more shapes to get one back.
+
+### Added
+
+- `yomi pack --format epub` (or a `.epub` output name) builds an EPUB 3 book from a crawl, readable on any e-reader. Each page becomes a well-formed XHTML chapter, in-scope links are rewired to sibling chapters, every referenced image is pulled into the book so it reads with no network, a generated navigation document lists every page, and a drawn-in-code cover stands in front. The book passes EPUBCheck, the official validator, with no errors or warnings, and carries accessibility metadata. `--icon <png>` supplies your own cover, and the existing `--title`, `--language`, and `--date` flags fill the book's metadata. The crawl keeps its SQLite store as a sidecar for the next incremental run, exactly as the ZIM format does.
+- `yomi read` now takes more than a URL. `yomi read -` reads HTML from standard input, and `yomi read page.html` reads a local file, so you can convert a page you already have without a fetch. `--base <url>` sets the URL that relative links resolve against.
+- Structured output for `yomi read`: `-f json` and `-f jsonl` emit the full page record (metadata, links, images, and the Markdown body) instead of a Markdown document, and `-f html` emits a self-contained HTML article. The default stays Markdown.
+- Structured output for `yomi site`: `--format json` and `--format jsonl` write one dataset file of every crawled page rather than a folder of Markdown, for feeding a pipeline.
+- `yomi site --sitemap` seeds the crawl from the site's `sitemap.xml` (and any `Sitemap:` lines in `robots.txt`), following a sitemap index one level, so a crawl reaches pages that are listed but not linked. `pack` honours the same option.
+- `yomi site --resume` continues an interrupted Markdown crawl. The crawl writes each page as it is read and records it in a `.yomi-state.jsonl` sidecar, so a re-run with `--resume` skips the pages already done, mirroring how `pack` resumes from its store.
+
 ## [0.2.1] - 2026-06-18
 
 A pass to make a packed ZIM open nicely in Kiwix.
@@ -87,7 +100,10 @@ First release. yomi reads a web page, or a whole website, into clean Markdown.
 - Code whose highlighter laid each line out as its own element, with no literal newline between lines, regains its line breaks.
 - Standalone preview-counter gutters, the column of bare numbers like 01, 02, 03 that component docs render next to an example, are dropped, while a lone number in prose and any number inside code are kept.
 
-[Unreleased]: https://github.com/tamnd/yomi/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/tamnd/yomi/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/tamnd/yomi/compare/v0.2.1...v0.3.0
+[0.2.1]: https://github.com/tamnd/yomi/compare/v0.2.0...v0.2.1
+[0.2.0]: https://github.com/tamnd/yomi/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/tamnd/yomi/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/tamnd/yomi/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/tamnd/yomi/releases/tag/v0.1.0

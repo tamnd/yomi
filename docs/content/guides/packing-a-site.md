@@ -1,14 +1,14 @@
 ---
 title: "Packing a site into one file"
-description: "Bundle a whole crawl into one SQLite database or one ZIM archive with yomi pack, and keep it current with a resumable, incremental crawl."
+description: "Bundle a whole crawl into one SQLite database, ZIM archive, or EPUB book with yomi pack, and keep it current with a resumable, incremental crawl."
 weight: 25
 ---
 
 `yomi site` writes a folder of Markdown files. `yomi pack` writes one file: a
-crawl of the whole site bundled into a single SQLite database, or a single ZIM
-archive you can open in [Kiwix](https://kiwix.org). Both are backed by the same
-database, so a pack resumes where it left off and a later run only fetches what
-changed.
+crawl of the whole site bundled into a single SQLite database, a single ZIM
+archive you can open in [Kiwix](https://kiwix.org), or a single EPUB book you can
+read on any e-reader. All three are backed by the same database, so a pack resumes
+where it left off and a later run only fetches what changed.
 
 ```bash
 # A SQLite database of the whole site (the default format)
@@ -16,12 +16,15 @@ yomi pack paulgraham.com -o pg.db
 
 # A ZIM offline archive, browsable in Kiwix
 yomi pack paulgraham.com -o pg.zim
+
+# An EPUB book for an e-reader
+yomi pack paulgraham.com -o pg.epub
 ```
 
-The output extension picks the format. `-o pg.zim` builds a ZIM and `-o pg.db`
-builds a database without you passing `--format` as well. With no `-o`, pack
-writes `<host>.db` (or `<host>.zim` when `--format zim` is set). An explicit
-`--format` always wins over the extension.
+The output extension picks the format. `-o pg.zim` builds a ZIM, `-o pg.epub`
+builds an EPUB, and `-o pg.db` builds a database without you passing `--format` as
+well. With no `-o`, pack writes `<host>.db` (or `<host>.zim`/`<host>.epub` when
+`--format` is set). An explicit `--format` always wins over the extension.
 
 ## SQLite: a site you can query
 
@@ -88,6 +91,36 @@ the book tile. yomi draws a built-in reading icon by default; pass `--icon` with
 a PNG to use the site's own logo instead. Pass `--no-compress` to store every
 entry raw, which makes a larger file that opens without decompression.
 
+## EPUB: a book for an e-reader
+
+An EPUB is the format to reach for when you want to read the site as a book, on a
+Kobo, a Kindle (after a convert), Apple Books, or any reading app. pack renders
+each page to a well-formed XHTML chapter, rewires the in-scope links to point at
+the sibling chapters, pulls every referenced image into the book so it reads with
+no network, generates a navigation table of contents, and puts a cover in front.
+The result passes EPUBCheck, the official validator, with no errors or warnings,
+so it opens cleanly in any reader and is accepted by any store.
+
+```bash
+yomi pack paulgraham.com -o pg.epub \
+  --title "Paul Graham's Essays" \
+  --language eng \
+  --icon cover.png
+```
+
+The book carries the Dublin Core metadata a reader shows: the title, the language
+(the ISO 639-3 code is mapped to the BCP 47 tag EPUB expects, so `eng` becomes
+`en`), the site as the creator, the seed URL as the source, and the date. yomi
+draws a built-in cover by default; pass `--icon` with a PNG to use your own. An
+image that cannot be fetched is replaced by its alt text rather than left as a
+broken link, and the package carries the accessibility metadata a reader expects.
+Like a ZIM build, an EPUB build keeps its SQLite store as a sidecar (`pg.db` for
+`pg.epub`) so the next run is incremental.
+
+The chapters read in crawl order, shallowest pages first, the same order the
+folder crawl's `SUMMARY.md` uses. Pages with no clean article body still come
+through as a chapter, so the book is the whole site, not just the long reads.
+
 ## The crawl resumes
 
 A pack is resumable because the database is the crawl's own backing store. Run
@@ -146,5 +179,6 @@ A pack honours `robots.txt` by default.
 
 Reach for **SQLite** when you want to query the site, feed it to a tool, or keep a
 structured record you can diff and join. Reach for **ZIM** when you want to read
-the site offline in Kiwix on a phone, a laptop, or a server. Either way the crawl
+the site offline in Kiwix on a phone, a laptop, or a server. Reach for **EPUB**
+when you want the site as a book in a reading app. Whichever you pick, the crawl
 is the same, and the SQLite store is always there to resume from.

@@ -82,14 +82,15 @@ file you can read top to bottom.
 ## 5. Pack a site into one file
 
 ```bash
-yomi pack paulgraham.com -o pg.db    # a SQLite database of the whole site
-yomi pack paulgraham.com -o pg.zim   # a ZIM archive you can open in Kiwix
+yomi pack paulgraham.com -o pg.db     # a SQLite database of the whole site
+yomi pack paulgraham.com -o pg.zim    # a ZIM archive you can open in Kiwix
+yomi pack paulgraham.com -o pg.epub   # an EPUB book for an e-reader
 ```
 
 `yomi pack` bundles a whole crawl into one file instead of a folder: a SQLite
-database with `pages`, `links`, and `images` tables, or a ZIM offline archive.
-The output extension picks the format. The crawl resumes, so running it again
-keeps every page already stored and fetches only what is new.
+database with `pages`, `links`, and `images` tables, a ZIM offline archive, or an
+EPUB book. The output extension picks the format. The crawl resumes, so running it
+again keeps every page already stored and fetches only what is new.
 
 ## 6. Preview a folder
 

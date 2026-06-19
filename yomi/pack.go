@@ -21,6 +21,9 @@ const (
 	// PackZIM compiles the page store into a ZIM offline archive, browsable in
 	// Kiwix, and keeps the store alongside it for the next incremental run.
 	PackZIM PackFormat = "zim"
+	// PackEPUB compiles the page store into an EPUB 3 book, readable on any
+	// e-reader, and keeps the store alongside it for the next incremental run.
+	PackEPUB PackFormat = "epub"
 )
 
 // PackOptions govern a pack run. It reuses the read and crawl Options and adds
@@ -171,17 +174,26 @@ func Pack(ctx context.Context, seedArg string, popts PackOptions) (*PackResult, 
 		Words:     words,
 	}
 
-	if popts.Format == PackZIM {
-		n, zerr := buildZIM(st, popts, host, popts.Out)
-		if zerr != nil {
+	switch popts.Format {
+	case PackZIM, PackEPUB:
+		var (
+			n    int64
+			berr error
+		)
+		if popts.Format == PackEPUB {
+			n, berr = buildEPUB(ctx, st, popts, host, popts.Out)
+		} else {
+			n, berr = buildZIM(st, popts, host, popts.Out)
+		}
+		if berr != nil {
 			if crawlErr != nil {
 				return res, crawlErr
 			}
-			return res, zerr
+			return res, berr
 		}
 		res.OutPath = popts.Out
 		res.Bytes = n
-	} else {
+	default:
 		res.OutPath = popts.State
 	}
 	return res, crawlErr

@@ -15,6 +15,28 @@ yomi read paulgraham.com/greatwork.html -o greatwork.md
 `-o/--out` writes to a file instead of stdout. You can pass a bare host like
 `paulgraham.com/greatwork.html`; yomi defaults a missing scheme to `https://`.
 
+## Where the page comes from
+
+The source does not have to be a URL. `yomi read` also reads a local HTML file, or
+HTML piped in on standard input, so you can convert a page you already have in
+hand without a network fetch:
+
+```bash
+# A local .html file
+yomi read saved-page.html
+
+# HTML on standard input
+curl -s example.com | yomi read -
+```
+
+For a file or stdin there is no URL to resolve relative links against, so the
+page's own links may be root-relative (`/about`) or bare. Pass `--base` with the
+page's real address and yomi resolves them to absolute URLs:
+
+```bash
+curl -s https://example.com/post | yomi read - --base https://example.com/post
+```
+
 ## Render modes
 
 The default mode is `--render auto`. yomi fetches the page with a plain HTTP
@@ -122,6 +144,35 @@ yomi read example.com -o page.md --images inline
 For a single read, `--images download` writes images into a `<name>.media/`
 sidecar folder next to the output file. The [images guide](/guides/images/)
 covers all three policies and the size cap.
+
+## Output format
+
+By default `yomi read` emits a Markdown document. `-f/--format` changes the shape:
+
+```bash
+# Markdown document (the default)
+yomi read example.com
+
+# The full page record as pretty-printed JSON
+yomi read example.com -f json
+
+# The same record as one line, for a stream of pages
+yomi read example.com -f jsonl
+
+# A self-contained HTML article
+yomi read example.com -f html
+```
+
+`json` and `jsonl` carry the whole page: the metadata, the links and images, and
+the Markdown body, so a downstream tool gets everything in one object. `jsonl`
+writes one record per line, which is the form to pipe into `jq` or to append many
+reads into one file. `html` renders the Markdown to a standalone, styled HTML
+article with no external dependencies, the single-page sibling of the HTML inside
+a packed ZIM or EPUB.
+
+The `json` shape is the same record `yomi meta` prints, with the `markdown` body
+field added. Reach for `meta` when you want only the metadata, and `read -f json`
+when you want the body alongside it.
 
 ## Just the metadata
 

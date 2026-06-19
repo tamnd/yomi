@@ -12,16 +12,27 @@ import (
 // paths, and a SUMMARY.md table of contents linking them all.
 func writeFolder(root string, _ *url.URL, pages []*Page, opts Options) error {
 	for _, p := range pages {
-		full := filepath.Join(root, filepath.FromSlash(p.Path))
-		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
-			return err
-		}
-		if err := os.WriteFile(full, []byte(Document(p, opts)), 0o644); err != nil {
+		if err := writePageFile(root, p, opts); err != nil {
 			return err
 		}
 	}
-	summary := buildSummary(pages)
-	return os.WriteFile(filepath.Join(root, "SUMMARY.md"), []byte(summary), 0o644)
+	return writeSummary(root, pages)
+}
+
+// writePageFile writes one page's Markdown file under root at its .md path,
+// creating any parent directories. It is what the resumable crawl calls per page
+// so an interrupt leaves every page read so far already on disk.
+func writePageFile(root string, p *Page, opts Options) error {
+	full := filepath.Join(root, filepath.FromSlash(p.Path))
+	if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(full, []byte(Document(p, opts)), 0o644)
+}
+
+// writeSummary writes the SUMMARY.md table of contents for the pages under root.
+func writeSummary(root string, pages []*Page) error {
+	return os.WriteFile(filepath.Join(root, "SUMMARY.md"), []byte(buildSummary(pages)), 0o644)
 }
 
 // buildSummary renders the SUMMARY.md: an ordered, depth-nested list of every

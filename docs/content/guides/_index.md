@@ -7,7 +7,7 @@ featured: true
 ---
 
 Each guide is built around a job rather than a flag: turning one page into clean
-Markdown, reading a whole site in scope, packing a site into one SQLite database
-or ZIM archive, deciding between a folder and a single file, and choosing what
-happens to images. They assume you have worked through the
+Markdown, reading a whole site in scope, packing a site into one SQLite database,
+ZIM archive, or EPUB book, deciding between a folder and a single file, and
+choosing what happens to images. They assume you have worked through the
 [quick start](/getting-started/quick-start/).

@@ -8,17 +8,21 @@ import (
 
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/extension"
+	"github.com/yuin/goldmark/parser"
 	gmhtml "github.com/yuin/goldmark/renderer/html"
 	xhtml "golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
 )
 
 // markdown is the shared GitHub-Flavored Markdown renderer used to turn a
-// stored page back into HTML for a ZIM. Unsafe is on so the inline HTML yomi
-// already emits (data-URI images, the odd raw tag) survives the round trip; the
-// input is content yomi extracted itself and the output is read offline.
+// stored page back into HTML for a ZIM or EPUB. Unsafe is on so the inline HTML
+// yomi already emits (data-URI images, the odd raw tag) survives the round trip;
+// the input is content yomi extracted itself and the output is read offline.
+// Auto heading IDs give every heading a stable anchor, so a same-page link to a
+// section resolves in the packed book instead of dangling.
 var markdown = goldmark.New(
 	goldmark.WithExtensions(extension.GFM),
+	goldmark.WithParserOptions(parser.WithAutoHeadingID()),
 	goldmark.WithRendererOptions(gmhtml.WithUnsafe()),
 )
 
@@ -81,9 +85,26 @@ func pageHTML(p *Page, body, indexHref string) string {
 	}
 	b.WriteString("</p>\n")
 	b.WriteString(body)
-	fmt.Fprintf(&b, "\n<hr>\n<p class=\"yomi-nav\"><a href=%q>Contents</a></p>\n", html.EscapeString(indexHref))
+	// A pack entry links back to the archive's contents page; a standalone
+	// document (read -f html) has none, so an empty indexHref drops the footer.
+	if indexHref != "" {
+		fmt.Fprintf(&b, "\n<hr>\n<p class=\"yomi-nav\"><a href=%q>Contents</a></p>\n", html.EscapeString(indexHref))
+	}
 	b.WriteString("</main>\n</body>\n</html>\n")
 	return b.String()
+}
+
+// StandaloneHTML renders a Page as a complete, self-contained HTML document: the
+// readable stylesheet, the title and a small source line, then the article body.
+// It is the html output of `read -f html`, the single-page sibling of the
+// per-page HTML the pack formats render, without the offline contents-page link
+// a ZIM entry carries.
+func StandaloneHTML(p *Page) (string, error) {
+	body, err := renderMarkdown(p.Markdown)
+	if err != nil {
+		return "", err
+	}
+	return pageHTML(p, body, ""), nil
 }
 
 // indexHTML builds the contents landing page that a reader opens first: the

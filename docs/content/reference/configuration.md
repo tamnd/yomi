@@ -32,12 +32,17 @@ What the Markdown looks like.
 
 | Flag | Default | Meaning |
 |------|---------|---------|
+| `-f, --format` | `md` | Output shape. `read`: `md`, `json`, `jsonl`, or `html`. `site`: `md`, `json`, or `jsonl` |
+| `--base` | | `read` only: base URL that relative links resolve against, for file or stdin input |
 | `--links` | `inline` | `inline` or `reference` link style |
 | `--no-front-matter` | `false` | Omit the YAML front-matter header |
 | `--title-heading` | `false` | Keep the title as an H1 at the top of the body |
 | `--wrap` | `0` | Hard-wrap prose at column N (0 = no wrap) |
 | `-o, --out` | varies | Output file (`read`), or folder/file (`site`); defaults to the host name for a site |
 | `-q, --quiet` | `false` | Suppress progress output |
+
+`yomi read` accepts a URL, a local `.html` file, or `-` for HTML on standard
+input, so you can convert a page you already have without a fetch.
 
 ## Images
 
@@ -57,6 +62,8 @@ is specific to `yomi site`.
 | Flag | Default | Meaning |
 |------|---------|---------|
 | `-s, --single` | `false` | One combined file instead of a folder (`site` only) |
+| `--resume` | `false` | Continue an interrupted Markdown crawl from its sidecar (`site` only; `pack` resumes from its store) |
+| `--sitemap` | `false` | Seed the crawl from the site's sitemap (`site` and `pack`) |
 | `-p, --max-pages` | `0` | Stop after N pages (0 = unlimited) |
 | `-d, --max-depth` | `0` | Depth cap (0 = unlimited) |
 | `--workers` | `4` | Concurrent page workers |
@@ -67,29 +74,31 @@ is specific to `yomi site`.
 
 ## Pack
 
-These apply to `yomi pack`, which bundles a crawl into one SQLite database or ZIM
-archive. See the [packing a site](/guides/packing-a-site/) guide for the full
-walkthrough.
+These apply to `yomi pack`, which bundles a crawl into one SQLite database, ZIM
+archive, or EPUB book. See the [packing a site](/guides/packing-a-site/) guide for
+the full walkthrough.
 
 | Flag | Default | Meaning |
 |------|---------|---------|
-| `--format` | `sqlite` | Output format: `sqlite` or `zim` (also inferred from a `.db`/`.zim` output name) |
-| `-o, --out` | `<host>.db`/`.zim` | Output file |
-| `--state` | the output with `.db` | SQLite store path for a ZIM build (the resumable sidecar) |
+| `--format` | `sqlite` | Output format: `sqlite`, `zim`, or `epub` (also inferred from a `.db`/`.zim`/`.epub` output name) |
+| `-o, --out` | `<host>.db`/`.zim`/`.epub` | Output file |
+| `--state` | the output with `.db` | SQLite store path for a ZIM or EPUB build (the resumable sidecar) |
 | `--refresh` | `false` | Re-fetch every page, ignoring what is stored |
 | `--max-age` | `0` | Re-fetch a stored page older than this duration (0 = never) |
-| `--title` | home page title | ZIM archive title |
-| `--description` | | ZIM archive description |
-| `--language` | `eng` | ZIM archive language (ISO 639-3) |
-| `--date` | today (UTC) | ZIM archive date (`YYYY-MM-DD`) |
-| `--icon` | a built-in icon | ZIM: path to a 48x48 PNG shown as the Kiwix library tile |
-| `--no-compress` | `false` | ZIM: store every entry raw, with no compression |
+| `--title` | home page title | ZIM/EPUB title |
+| `--language` | `eng` | Language (ISO 639-3; mapped to a BCP 47 tag for EPUB) |
+| `--date` | today (UTC) | Date (`YYYY-MM-DD`) |
+| `--icon` | a built-in image | ZIM library tile (48x48) or EPUB cover, as a PNG |
+| `--description` | | ZIM only: archive description |
+| `--no-compress` | `false` | ZIM only: store every entry raw, with no compression |
 
-A ZIM build also writes the metadata Kiwix reads to present the archive: a
-`Title`, `Description`, `Language`, `Date`, `Name`, `Creator` (the site),
-`Publisher` and `Scraper` (yomi), a `Counter` of the packed pages, and an
-`Illustration_48x48@1` library icon. Pass `--icon` to replace the built-in icon
-with the site's own logo.
+A ZIM build writes the metadata Kiwix reads to present the archive: a `Title`,
+`Description`, `Language`, `Date`, `Name`, `Creator` (the site), `Publisher` and
+`Scraper` (yomi), a `Counter` of the packed pages, and an `Illustration_48x48@1`
+library icon. An EPUB build writes the Dublin Core metadata a reader shows: the
+title, language, the site as creator, the seed as source, the date, and the
+cover. Pass `--icon` to replace the built-in icon or cover with the site's own
+artwork.
 
 ## Environment variables
 

@@ -88,9 +88,9 @@ That is the whole loop. The rest of this README is the interesting flags.
 
 | Command | What it does |
 | --- | --- |
-| `yomi read <url>` | Read one page to stdout, or to a file with `-o`. |
-| `yomi site <url>` | Crawl a site into a folder, or one combined file with `--single`. |
-| `yomi pack <url>` | Crawl a site into one file: a SQLite database or a ZIM archive, resumable. |
+| `yomi read <url \| file \| ->` | Read one page (URL, local file, or stdin) to stdout, or to a file with `-o`. |
+| `yomi site <url>` | Crawl a site into a folder, one combined file with `--single`, or a JSON/JSONL dataset. |
+| `yomi pack <url>` | Crawl a site into one file: a SQLite database, ZIM archive, or EPUB book, resumable. |
 | `yomi meta <url>` | Print a page's metadata as JSON, without the body. |
 | `yomi links <url>` | List the real links in a page's article body. |
 | `yomi serve [dir]` | Preview a folder of Markdown in your browser. |
@@ -110,7 +110,13 @@ yomi read example.com --no-front-matter --title-heading --wrap 80
 
 # Force a render for a single-page app, scrolling to trip lazy-loaded content
 yomi read example.com --render on --scroll
+
+# Read a local file or stdin instead of fetching, and emit JSON
+yomi read saved-page.html -f json
+curl -s example.com | yomi read - --base https://example.com -f json
 ```
+
+The source can be a URL, a local `.html` file, or `-` for HTML on standard input, so you can convert a page you already have without a fetch; pass `--base` so relative links resolve. `-f/--format` chooses the output shape: `md` (the default), `json` or `jsonl` for the full page record with the Markdown body, or `html` for a self-contained article.
 
 The default `--render auto` is the part worth understanding. yomi fetches the page with a plain HTTP request first. Then it looks at what came back, and only escalates to headless Chrome when the page looks JavaScript-gated: an empty SPA mount like `#root`, `#__next`, or `#app`, a `<noscript>` that says JavaScript is required, or under 25 words of visible text. A page that already arrived as readable HTML never launches a browser, so the common case stays fast. Force the choice with `--render on` (always render) or `--render off` (never launch a browser).
 
@@ -157,14 +163,19 @@ pg/
 └── media/                # downloaded images, shared across pages
 ```
 
-`--single` collapses the same crawl into one document: a table of contents at the top, then each page as its own anchored section, with every page's headings demoted a level so the file keeps one clean outline. Reach for the folder when you want each page as its own editable file; reach for `--single` when you want the whole site as one thing to read top to bottom or hand to a tool.
+`--single` collapses the same crawl into one document: a table of contents at the top, then each page as its own anchored section, with every page's headings demoted a level so the file keeps one clean outline. Reach for the folder when you want each page as its own editable file; reach for `--single` when you want the whole site as one thing to read top to bottom or hand to a tool. For the crawl as data, `--format json` or `--format jsonl` writes one structured file of every page instead.
+
+A Markdown crawl is resumable: it records each page in a `.yomi-state.jsonl` sidecar as it goes, so `--resume` continues an interrupted run rather than starting over. `--sitemap` seeds the crawl from the site's `sitemap.xml` so it reaches pages that are listed but not linked.
 
 The flags you will actually reach for:
 
 | Flag | Default | Meaning |
 |------|---------|---------|
-| `-o, --out` | the host | Output folder, or file path with `--single` |
+| `-f, --format` | `md` | Output format: `md` (folder or `--single`), `json`, or `jsonl` |
+| `-o, --out` | the host | Output folder, or file path with `--single`/`--format` |
 | `-s, --single` | `false` | One combined file instead of a folder |
+| `--resume` | `false` | Continue an interrupted Markdown crawl from its sidecar |
+| `--sitemap` | `false` | Seed the crawl from the site's sitemap |
 | `-p, --max-pages` | `0` | Stop after N pages (0 = no limit) |
 | `-d, --max-depth` | `0` | How many links deep to follow (0 = no limit) |
 | `--scope-prefix` | | Only crawl paths starting with this prefix |
@@ -175,7 +186,7 @@ The flags you will actually reach for:
 
 ## Pack a site into one file
 
-`yomi site` gives you a folder of files. `yomi pack` gives you one file: a crawl of the whole site bundled into a single SQLite database, or a single ZIM archive you can open in [Kiwix](https://kiwix.org). The crawl is backed by the database either way, so a pack resumes where it left off and a later run only fetches what changed.
+`yomi site` gives you a folder of files. `yomi pack` gives you one file: a crawl of the whole site bundled into a single SQLite database, a single ZIM archive you can open in [Kiwix](https://kiwix.org), or a single EPUB book you can read on any e-reader. The crawl is backed by the database every way, so a pack resumes where it left off and a later run only fetches what changed.
 
 ```bash
 # A SQLite database of the whole site (the default format)
@@ -183,9 +194,12 @@ yomi pack paulgraham.com -o pg.db
 
 # A ZIM offline archive, browsable in Kiwix
 yomi pack paulgraham.com -o pg.zim
+
+# An EPUB book for an e-reader
+yomi pack paulgraham.com -o pg.epub
 ```
 
-The output extension picks the format, so `-o pg.zim` builds a ZIM and `-o pg.db` builds a database without you also passing `--format`. With no `-o`, pack writes `<host>.db` (or `<host>.zim`).
+The output extension picks the format, so `-o pg.zim` builds a ZIM, `-o pg.epub` builds an EPUB, and `-o pg.db` builds a database without you also passing `--format`. With no `-o`, pack writes `<host>.db` (or `<host>.zim`/`<host>.epub`).
 
 **SQLite** is the format to reach for when you want to query the site. Every page is a row in a clean `pages` table, with its title, byline, language, word count, reading time, and the Markdown body, alongside `links` and `images` tables that join back to it:
 
@@ -195,6 +209,8 @@ sqlite3 pg.db "select title, word_count, reading_time from pages order by word_c
 ```
 
 **ZIM** is the format to reach for when you want to read the site offline. pack renders each page to a self-contained HTML document, rewires the in-scope links to point at the sibling entries, generates a contents page as the landing page, and writes one OpenZIM file. Open it in Kiwix on any device, or serve it with `kiwix-serve`. A ZIM build keeps its SQLite store next to the archive as a sidecar, so the next run is incremental too.
+
+**EPUB** is the format to reach for when you want the site as a book. pack renders each page to a well-formed XHTML chapter, rewires the in-scope links to the sibling chapters, generates a navigation table of contents, and puts a drawn-in-code cover in front. The book opens in Apple Books, a Kobo, or any reading app, and like a ZIM build it keeps its SQLite store as a sidecar for the next run. Pass `--icon` to use your own cover.
 
 The crawl resumes by default. Run pack again and it keeps every page already stored, fetching only pages it has not seen:
 
@@ -210,7 +226,7 @@ yomi pack paulgraham.com -o pg.db --refresh        # re-read everything
 yomi pack paulgraham.com -o pg.db --max-age 24h    # re-read pages older than a day
 ```
 
-pack takes the same scope, limit, worker, and robots flags as `yomi site` (`--scope-prefix`, `--max-pages`, `--max-depth`, `--subdomains`, `--exclude`, `--workers`, `--no-robots`), plus ZIM metadata flags (`--title`, `--description`, `--language`, `--date`) and `--no-compress` for an uncompressed archive.
+pack takes the same scope, limit, worker, and robots flags as `yomi site` (`--scope-prefix`, `--max-pages`, `--max-depth`, `--subdomains`, `--exclude`, `--workers`, `--no-robots`), plus `--sitemap` to seed the crawl from the site's sitemap and metadata flags for the ZIM and EPUB formats (`--title`, `--language`, `--date`, `--icon`, plus ZIM-only `--description` and `--no-compress`).
 
 ## Images
 
